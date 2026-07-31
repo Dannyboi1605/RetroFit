@@ -105,8 +105,8 @@ export default function QuestWizard() {
           formData.set("carbsG", carbsG);
           formData.set("fatG", fatG);
           formData.set("goal", goal);
-          await formAction(formData);
-          if (!state?.error) router.replace("/");
+          const res = await formAction(formData);
+          if (!res?.error) router.replace("/");
         }}
         className="snes-window flex flex-col gap-4 p-6"
       >
@@ -251,14 +251,16 @@ export default function QuestWizard() {
 
         {state?.error && <p className="font-mono text-xs text-error">{state.error}</p>}
 
-        <button
-          type="button"
-          className="pixel-btn w-full"
-          disabled={!canContinue || pending}
-          onClick={goNext}
-        >
-          Continue
-        </button>
+        {step < STEPS.length && (
+          <button
+            type="button"
+            className="pixel-btn w-full"
+            disabled={!canContinue || pending}
+            onClick={goNext}
+          >
+            Continue
+          </button>
+        )}
 
         {step === 5 && (
           <button type="submit" className="pixel-btn w-full" disabled={pending}>
