@@ -27,7 +27,7 @@ export async function pushPending(): Promise<number> {
     if (!meta) continue;
 
     if (entry.op === "insert") {
-      const local = await db[entry.table].get(entry.client_id);
+      const local = (await db[entry.table].get(entry.client_id)) as Record<string, unknown> | undefined;
       if (!local || local.deleted === 1) continue;
 
       const payload: Record<string, unknown> = { user_id: user.id };
