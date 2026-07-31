@@ -105,7 +105,7 @@ export default function QuestWizard() {
           formData.set("carbsG", carbsG);
           formData.set("fatG", fatG);
           formData.set("goal", goal);
-          const res = await formAction(formData);
+          const res = (await formAction(formData)) as QuestState | undefined;
           if (!res?.error) router.replace("/");
         }}
         className="snes-window flex flex-col gap-4 p-6"
