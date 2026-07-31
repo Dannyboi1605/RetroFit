@@ -20,12 +20,15 @@ export async function saveQuest(
   const proteinG = Number(formData.get("proteinG"));
   const carbsG = Number(formData.get("carbsG"));
   const fatG = Number(formData.get("fatG"));
+  const goal = String(formData.get("goal"));
 
   if (!(age >= 13 && age <= 100)) return { error: "Age must be 13-100." };
   if (!(heightCm >= 100 && heightCm <= 250)) return { error: "Height must be 100-250 cm." };
   if (!(weightKg >= 30 && weightKg <= 300)) return { error: "Weight must be 30-300 kg." };
   if (!(proteinG >= 0 && carbsG >= 0 && fatG >= 0))
     return { error: "Macros must be 0 or more grams." };
+  if (!["cut", "maintain", "bulk"].includes(goal))
+    return { error: "Pick a goal." };
 
   const dailyCalories = caloriesFromMacros(proteinG, carbsG, fatG);
   if (dailyCalories < 800 || dailyCalories > 6000)
@@ -49,6 +52,7 @@ export async function saveQuest(
         height_cm: heightCm,
         current_weight_kg: weightKg,
         activity_level: activityLevel,
+        goal,
         daily_calorie_target: dailyCalories,
         protein_target_g: proteinG,
         carbs_target_g: carbsG,
