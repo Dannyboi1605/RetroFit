@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { supabaseServer } from "@/lib/supabase/server";
 import AppShell from "@/components/app-shell";
 
 const MACROS = [
@@ -11,7 +13,22 @@ const RECENT_LOGS = [
   { meal: "Lunch", name: "Chicken Salad", kcal: 520, icon: "lunch_dining", color: "#ffe08b" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("has_completed_onboarding")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.has_completed_onboarding) redirect("/quest");
+
   return (
     <AppShell activeTab="home">
       <section className="flex flex-col gap-4">
