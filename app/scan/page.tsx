@@ -152,17 +152,17 @@ export default function ScanPage() {
 
       <div className="grid grid-cols-2 gap-2">
         <button
-          className={`pixel-btn-secondary py-2 font-mono text-xs uppercase ${mode === "ai" ? "opacity-100" : "opacity-50"}`}
+          className={`pixel-btn-secondary py-2 ${mode === "ai" ? "opacity-100" : "opacity-50"}`}
           onClick={() => setMode("ai")}
         >
-          <span className="material-symbols-outlined text-sm">auto_awesome</span>
+          <span className="material-symbols-outlined text-base">auto_awesome</span>
           AI Scan
         </button>
         <button
-          className={`pixel-btn-secondary py-2 font-mono text-xs uppercase ${mode === "barcode" ? "opacity-100" : "opacity-50"}`}
+          className={`pixel-btn-secondary py-2 ${mode === "barcode" ? "opacity-100" : "opacity-50"}`}
           onClick={() => setMode("barcode")}
         >
-          <span className="material-symbols-outlined text-sm">barcode_scanner</span>
+          <span className="material-symbols-outlined text-base">barcode_scanner</span>
           Barcode
         </button>
       </div>
@@ -266,7 +266,7 @@ export default function ScanPage() {
               {(["breakfast", "lunch", "dinner", "snack"] as const).map((m) => (
                 <button
                   key={m}
-                  className={`pixel-btn-secondary py-1 font-mono text-[10px] uppercase ${
+                  className={`pixel-btn-secondary px-1 py-1 font-mono text-xs uppercase ${
                     result.mealType === m ? "opacity-100" : "opacity-50"
                   }`}
                   onClick={() => setResult({ ...result, mealType: m })}
