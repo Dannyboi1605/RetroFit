@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Anybody, Inter, JetBrains_Mono } from "next/font/google";
+import SwRegister from "@/components/sw-register";
 import "./globals.css";
 
 const anybody = Anybody({ subsets: ["latin"], variable: "--font-anybody" });
@@ -36,7 +37,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <SwRegister />
+        {children}
+      </body>
     </html>
   );
 }
