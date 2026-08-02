@@ -80,12 +80,17 @@ export default function ScanPage() {
           () => {}
         )
         .catch(() => {
+          scannerRef.current = null;
           if (!stopped) setError("Camera unavailable — enter the barcode manually instead.");
         });
     })();
     return () => {
       stopped = true;
-      scannerRef.current?.stop();
+      try {
+        scannerRef.current?.stop();
+      } catch {
+        // scanner was never started (camera unavailable) — nothing to stop
+      }
       scannerRef.current = null;
     };
   }, [mode, result]);
