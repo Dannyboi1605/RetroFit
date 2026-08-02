@@ -5,6 +5,7 @@ import AppShell from "@/components/app-shell";
 import AddEntryModal from "@/components/add-entry-modal";
 import { deleteMeal, listMeals, type Meal } from "@/db/db";
 import { initSync } from "@/lib/sync";
+import { shiftDate, todayStr } from "@/lib/date";
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 const MEAL_ICONS: Record<(typeof MEAL_TYPES)[number], string> = {
@@ -15,7 +16,7 @@ const MEAL_ICONS: Record<(typeof MEAL_TYPES)[number], string> = {
 };
 
 export default function LogPage() {
-  const [today] = useState(new Date().toISOString().slice(0, 10));
+  const [today] = useState(todayStr());
   const [selectedDate, setSelectedDate] = useState(today);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [online, setOnline] = useState(true);
@@ -26,9 +27,7 @@ export default function LogPage() {
   }, []);
 
   function shiftDay(days: number) {
-    const d = new Date(selectedDate + "T00:00:00");
-    d.setDate(d.getDate() + days);
-    setSelectedDate(d.toISOString().slice(0, 10));
+    setSelectedDate(shiftDate(selectedDate, days));
   }
 
   useEffect(() => {

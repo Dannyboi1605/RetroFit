@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import { listMeals, listWeightLogs, type Meal, type WeightLog } from "@/db/db";
+import { todayStr } from "@/lib/date";
 
 type Profile = {
   daily_calorie_target: number;
@@ -28,7 +29,7 @@ const MACRO_COLORS: Record<string, string> = {
 
 export default function HomeDashboard({ profile }: { profile: Profile }) {
   const router = useRouter();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [weights, setWeights] = useState<WeightLog[]>([]);
 

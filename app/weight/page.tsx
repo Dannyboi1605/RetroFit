@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app-shell";
 import { addWeight, listWeightLogs, type WeightLog } from "@/db/db";
 import { initSync } from "@/lib/sync";
+import { dateStr, todayStr } from "@/lib/date";
 
 const RANGES = [
   { id: "1W", days: 7 },
@@ -14,7 +15,7 @@ const RANGES = [
 export default function WeightPage() {
   const [logs, setLogs] = useState<WeightLog[]>([]);
   const [range, setRange] = useState<(typeof RANGES)[number]["id"]>("1M");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr());
   const [weight, setWeight] = useState("");
   const [note, setNote] = useState("");
 
@@ -35,7 +36,7 @@ export default function WeightPage() {
     return logs.filter((w) => {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - days);
-      return w.logged_date >= cutoff.toISOString().slice(0, 10);
+      return w.logged_date >= dateStr(cutoff);
     });
   }, [logs, range]);
 

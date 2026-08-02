@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import { dateStr } from "@/lib/date";
 
 export type Meal = {
   client_id: string;
@@ -144,6 +145,6 @@ export async function listWeightLogs(rangeDays?: number): Promise<WeightLog[]> {
   if (!rangeDays) return all;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - rangeDays);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = dateStr(cutoff);
   return all.filter((w) => w.logged_date >= cutoffStr);
 }
