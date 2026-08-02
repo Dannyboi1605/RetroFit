@@ -2,6 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 
+export function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ScanCamera({
   onCapture,
   onError,
@@ -51,11 +60,13 @@ export default function ScanCamera({
     onCapture(canvas.toDataURL("image/jpeg", 0.8));
   }
 
-  function onFile(file: File | undefined) {
+  async function onFile(file: File | undefined) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onCapture(String(reader.result));
-    reader.readAsDataURL(file);
+    try {
+      onCapture(await fileToDataUrl(file));
+    } catch {
+      onError("Could not read that file — try another photo");
+    }
   }
 
   if (cameraFailed) {
