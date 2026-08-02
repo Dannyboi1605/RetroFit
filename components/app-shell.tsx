@@ -42,7 +42,7 @@ export default function AppShell({
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-1/2 z-50 flex h-20 w-full max-w-[600px] -translate-x-1/2 items-center justify-around border-t-2 border-outline-variant bg-surface-container-lowest px-2 pb-2">
+      <nav className="fixed bottom-0 left-1/2 z-50 flex h-20 w-full max-w-[600px] -translate-x-1/2 items-center justify-around border-t-2 border-outline-variant bg-surface-container-lowest/70 px-2 pb-2 backdrop-blur-md">
         {TABS.map((tab) => {
           const active = tab.id === activeTab;
           return (

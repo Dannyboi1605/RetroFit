@@ -91,7 +91,7 @@ export default function LogPage() {
         </button>
       </div>
 
-      <div className="sticky top-16 z-40 flex flex-col gap-4 border-2 border-outline-variant bg-surface-container-high p-4 shadow-[0_4px_0_0_rgba(12,22,9,1)]">
+      <div className="flex flex-col gap-4 border-2 border-outline-variant bg-surface-container-high p-4 shadow-[0_4px_0_0_rgba(12,22,9,1)]">
         <div className="flex items-end justify-between">
           <div>
             <div className="font-mono text-xs font-semibold uppercase text-on-surface-variant">
