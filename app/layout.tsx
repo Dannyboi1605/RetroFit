@@ -11,7 +11,10 @@ export const metadata: Metadata = {
   title: "RetroFit 8-Bit",
   description: "8-bit calorie and macro tracker",
   manifest: "/manifest.webmanifest",
-  icons: [{ rel: "icon", url: "/RF logo.png" }],
+  icons: [
+    { rel: "icon", url: "/RF logo.png" },
+    { rel: "apple-touch-icon", url: "/apple-touch-icon.png" },
+  ],
   appleWebApp: {
     capable: true,
     title: "RetroFit 8-Bit",
@@ -29,14 +32,7 @@ export default function RootLayout({
       lang="en"
       className={`${anybody.variable} ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+      <head></head>
       <body className="min-h-full flex flex-col">
         <SwRegister />
         {children}
