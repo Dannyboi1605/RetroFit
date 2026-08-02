@@ -12,6 +12,18 @@ const TABLES: Record<string, { table: string; columns: string }> = {
   },
 };
 
+const INT_COLUMNS = new Set(["calories", "protein_g", "carbs_g", "fat_g"]);
+
+function toPayload(local: Record<string, unknown>, user: { id: string }, columns: string): Record<string, unknown> {
+  const payload: Record<string, unknown> = { user_id: user.id };
+  for (const col of columns.split(", ")) {
+    if (!(col in local)) continue;
+    const v = local[col];
+    payload[col] = INT_COLUMNS.has(col) && typeof v === "number" ? Math.round(v) : v;
+  }
+  return payload;
+}
+
 export async function pushPending(): Promise<number> {
   const queue = await db.syncQueue.orderBy("created_at").toArray();
   if (queue.length === 0) return 0;
@@ -30,10 +42,7 @@ export async function pushPending(): Promise<number> {
       const local = (await db[entry.table].get(entry.client_id)) as Record<string, unknown> | undefined;
       if (!local || local.deleted === 1) continue;
 
-      const payload: Record<string, unknown> = { user_id: user.id };
-      for (const col of meta.columns.split(", ")) {
-        if (col in local) payload[col] = local[col];
-      }
+      const payload = toPayload(local, user, meta.columns);
 
       const { error } = await supabase.from(meta.table).insert(payload);
 
@@ -49,10 +58,7 @@ export async function pushPending(): Promise<number> {
       const local = (await db[entry.table].get(entry.client_id)) as Record<string, unknown> | undefined;
       if (!local || local.deleted === 1) continue;
 
-      const payload: Record<string, unknown> = { user_id: user.id };
-      for (const col of meta.columns.split(", ")) {
-        if (col in local) payload[col] = local[col];
-      }
+      const payload = toPayload(local, user, meta.columns);
 
       const { error } = await supabase.from(meta.table).upsert(payload, { onConflict: "client_id" });
 
