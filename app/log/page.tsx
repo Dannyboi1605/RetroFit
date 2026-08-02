@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app-shell";
 import AddEntryModal from "@/components/add-entry-modal";
 import { deleteMeal, listMeals, type Meal } from "@/db/db";
-import { initSync } from "@/lib/sync";
 import { shiftDate, todayStr } from "@/lib/date";
+import { supabase } from "@/lib/supabase/client";
+import { initSync } from "@/lib/sync";
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 const MEAL_ICONS: Record<(typeof MEAL_TYPES)[number], string> = {
@@ -15,16 +16,60 @@ const MEAL_ICONS: Record<(typeof MEAL_TYPES)[number], string> = {
   snack: "cake",
 };
 
+type Targets = {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
 export default function LogPage() {
   const [today] = useState(todayStr());
   const [selectedDate, setSelectedDate] = useState(today);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [online, setOnline] = useState(true);
+  const [targets, setTargets] = useState<Targets | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [modal, setModal] = useState<{ mealType: (typeof MEAL_TYPES)[number]; editing?: Meal } | null>(null);
 
   useEffect(() => {
     initSync();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
+        .eq("id", user.id)
+        .single();
+      if (data) {
+        setTargets({
+          calories: data.daily_calorie_target,
+          protein: data.protein_target_g,
+          carbs: data.carbs_target_g,
+          fat: data.fat_target_g,
+        });
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const timer = setTimeout(() => setConfirmDelete(null), 3000);
+    const onClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-confirm-delete]")) setConfirmDelete(null);
+    };
+    document.addEventListener("click", onClick);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", onClick);
+    };
+  }, [confirmDelete]);
 
   function shiftDay(days: number) {
     setSelectedDate(shiftDate(selectedDate, days));
@@ -65,10 +110,11 @@ export default function LogPage() {
     <AppShell activeTab="log">
       <div className="flex items-center justify-between border-2 border-outline-variant bg-surface-container p-2">
         <button
-          className="pixel-btn-secondary flex h-8 w-8 items-center justify-center p-1"
+          className="pixel-btn-secondary flex h-11 w-11 items-center justify-center p-1"
+          aria-label="Previous day"
           onClick={() => shiftDay(-1)}
         >
-          <span className="material-symbols-outlined text-base">chevron_left</span>
+          <span className="material-symbols-outlined text-xl">chevron_left</span>
         </button>
         <button className="flex flex-col items-center" onClick={() => setSelectedDate(today)}>
           <span className="font-mono text-xs font-semibold text-on-surface-variant">
@@ -84,10 +130,11 @@ export default function LogPage() {
           </span>
         </button>
         <button
-          className="pixel-btn-secondary flex h-8 w-8 items-center justify-center p-1"
+          className="pixel-btn-secondary flex h-11 w-11 items-center justify-center p-1"
+          aria-label="Next day"
           onClick={() => shiftDay(1)}
         >
-          <span className="material-symbols-outlined text-base">chevron_right</span>
+          <span className="material-symbols-outlined text-xl">chevron_right</span>
         </button>
       </div>
 
@@ -99,7 +146,13 @@ export default function LogPage() {
             </div>
             <div className="font-headline text-2xl font-extrabold text-primary">
               {totals.calories.toLocaleString()}{" "}
-              <span className="font-sans text-sm text-on-surface-variant">/ target</span>
+              {targets ? (
+                <span className="font-sans text-sm text-on-surface-variant">/ target</span>
+              ) : (
+                <span className="font-mono text-xs font-bold text-error">
+                  OFFLINE — target unavailable
+                </span>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -112,19 +165,27 @@ export default function LogPage() {
           </div>
         </div>
         <div className="macro-bar-bg h-4">
-          <div className="macro-bar-fill" style={{ width: `${Math.min(100, (totals.calories / 2000) * 100)}%` }} />
+          <div
+            className="macro-bar-fill"
+            style={{
+              width: `${targets ? Math.min(100, (totals.calories / targets.calories) * 100) : 0}%`,
+            }}
+          />
         </div>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "PRO (P)", value: `${totals.protein}g`, mod: "protein" },
-            { label: "CARB (C)", value: `${totals.carbs}g`, mod: "carbs" },
-            { label: "FAT (F)", value: `${totals.fat}g`, mod: "fat" },
+            { label: "PRO (P)", value: totals.protein, target: targets?.protein, mod: "protein" },
+            { label: "CARB (C)", value: totals.carbs, target: targets?.carbs, mod: "carbs" },
+            { label: "FAT (F)", value: totals.fat, target: targets?.fat, mod: "fat" },
           ].map((m) => (
             <div key={m.label} className="flex flex-col items-center border-2 border-surface-variant bg-surface p-2">
               <span className="font-mono text-[10px] font-semibold uppercase text-error">{m.label}</span>
-              <span className="font-mono text-base font-bold text-primary">{m.value}</span>
+              <span className="font-mono text-base font-bold text-primary">{m.value}g</span>
               <div className="macro-bar-bg mt-1 h-2 w-full">
-                <div className={`macro-bar-fill ${m.mod}`} style={{ width: "100%" }} />
+                <div
+                  className={`macro-bar-fill ${m.mod}`}
+                  style={{ width: `${m.target ? Math.min(100, (m.value / m.target) * 100) : 0}%` }}
+                />
               </div>
             </div>
           ))}
@@ -165,19 +226,33 @@ export default function LogPage() {
                       <span className="font-mono text-base text-on-surface">{e.calories}</span>
                       <button
                         className="text-on-surface-variant transition-colors hover:text-primary"
+                        aria-label="Edit"
                         onClick={() => setModal({ mealType: e.meal_type, editing: e })}
                       >
                         <span className="material-symbols-outlined text-lg">edit</span>
                       </button>
-                      <button
-                        className="text-on-error transition-colors hover:text-error"
-                        onClick={async () => {
-                          await deleteMeal(e.client_id);
-                          refresh();
-                        }}
-                      >
-                        <span className="material-symbols-outlined text-lg">close</span>
-                      </button>
+                      {confirmDelete === e.client_id ? (
+                        <button
+                          data-confirm-delete
+                          className="pixel-btn-danger flex items-center gap-1 px-2 py-1 font-mono text-[10px] font-bold uppercase"
+                          onClick={async () => {
+                            await deleteMeal(e.client_id);
+                            setConfirmDelete(null);
+                            refresh();
+                          }}
+                        >
+                          <span className="material-symbols-outlined text-base">close</span>
+                          Sure?
+                        </button>
+                      ) : (
+                        <button
+                          className="text-on-error transition-colors hover:text-error"
+                          aria-label="Delete entry"
+                          onClick={() => setConfirmDelete(e.client_id)}
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -99,12 +99,6 @@ export default function HomeDashboard({ profile }: { profile: Profile }) {
               Daily Overview
             </h1>
           </div>
-          <button
-            className="border-2 border-outline bg-surface-container p-2 transition-colors hover:border-primary"
-            onClick={() => router.push("/settings")}
-          >
-            <span className="material-symbols-outlined text-primary">settings</span>
-          </button>
         </div>
 
         <div className="snes-window flex flex-col gap-4 p-3">
@@ -148,8 +142,8 @@ export default function HomeDashboard({ profile }: { profile: Profile }) {
           <span>Log Manually</span>
         </button>
         <button
-          className="pixel-btn w-full border-b-[#775e00] border-l-[#ffe08b] border-r-[#775e00] border-t-[#ffe08b] bg-tertiary-container p-3 text-on-tertiary-container opacity-60"
-          title="Coming in P7"
+          className="pixel-btn w-full border-b-[#775e00] border-l-[#ffe08b] border-r-[#775e00] border-t-[#ffe08b] bg-tertiary-container p-3 text-on-tertiary-container"
+          onClick={() => router.push("/scan")}
         >
           <span className="material-symbols-outlined text-base">camera_alt</span>
           <span>Scan Meal</span>
@@ -159,6 +153,14 @@ export default function HomeDashboard({ profile }: { profile: Profile }) {
       <section
         className="snes-window flex cursor-pointer flex-col gap-4 p-3"
         onClick={() => router.push("/weight")}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            router.push("/weight");
+          }
+        }}
       >
         <div className="flex items-center justify-between border-b-2 border-outline-variant pb-2">
           <h2 className="flex items-center gap-2 font-headline text-lg font-bold uppercase tracking-widest text-tertiary">
@@ -213,6 +215,14 @@ export default function HomeDashboard({ profile }: { profile: Profile }) {
               key={e.client_id}
               className="snes-window flex cursor-pointer items-center justify-between p-3"
               onClick={() => router.push("/log")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" || ev.key === " ") {
+                  ev.preventDefault();
+                  router.push("/log");
+                }
+              }}
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center border-2 border-outline-variant bg-surface-bright">

@@ -11,7 +11,7 @@ export default async function LoginPage() {
   if (user) redirect("/");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[600px] items-center justify-center px-4">
+    <main className="mx-auto flex min-h-screen w-full max-w-app flex-col justify-center px-4">
       <LoginForm />
     </main>
   );

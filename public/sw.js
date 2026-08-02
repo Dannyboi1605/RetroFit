@@ -1,8 +1,8 @@
 // ponytail: hand-rolled SW; next-pwa not worth a dependency for 50 lines.
 // ponytail: cache-first for static, network-first for pages; upgrade path:
 // precache hashes / route handlers if offline needs to go deeper.
-const CACHE = "retrofit-shell-v1";
-const PRECACHE = ["/", "/log", "/scan", "/weight", "/settings", "/manifest.webmanifest", "/RF logo.png"];
+const CACHE = "retrofit-shell-v2";
+const PRECACHE = ["/", "/log", "/scan", "/weight", "/settings", "/manifest.webmanifest", "/RF logo.png", "/fonts/material-symbols.woff2"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(

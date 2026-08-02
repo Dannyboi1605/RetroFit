@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/app-shell";
 import { addWeight, listWeightLogs, type WeightLog } from "@/db/db";
 import { initSync } from "@/lib/sync";
@@ -18,6 +18,11 @@ export default function WeightPage() {
   const [date, setDate] = useState(todayStr());
   const [weight, setWeight] = useState("");
   const [note, setNote] = useState("");
+  const [saved, setSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const kg = Number(weight);
+  const weightInvalid = !kg || kg < 30 || kg > 300;
 
   useEffect(() => {
     initSync();
@@ -59,11 +64,13 @@ export default function WeightPage() {
   }, [filtered]);
 
   async function handleSave() {
-    const kg = Number(weight);
-    if (!kg || kg < 30 || kg > 300) return;
+    if (weightInvalid) return;
     await addWeight({ logged_date: date, weight_kg: kg, note: note || undefined });
     setWeight("");
     setNote("");
+    setSaved(true);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaved(false), 2500);
     refresh();
   }
 
@@ -89,8 +96,9 @@ export default function WeightPage() {
             {RANGES.map((r) => (
               <button
                 key={r.id}
+                aria-pressed={range === r.id}
                 className={`pixel-btn-secondary px-3 py-1 font-mono text-xs ${
-                  range === r.id ? "opacity-100" : "opacity-50"
+                  range === r.id ? "border-primary text-primary" : "opacity-60"
                 }`}
                 onClick={() => setRange(r.id)}
               >
@@ -130,8 +138,20 @@ export default function WeightPage() {
               <div className="absolute left-2 top-1 font-mono text-[10px] text-on-surface-variant">
                 {chart.hi.toFixed(1)} kg
               </div>
-              <div className="absolute bottom-1 left-2 font-mono text-[10px] text-on-surface-variant">
+              <div className="absolute bottom-5 left-2 font-mono text-[10px] text-on-surface-variant">
                 {chart.lo.toFixed(1)} kg
+              </div>
+              <div className="absolute bottom-1 left-2 font-mono text-[10px] text-on-surface-variant">
+                {new Date(filtered[0].logged_date + "T00:00:00").toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </div>
+              <div className="absolute bottom-1 right-2 font-mono text-[10px] text-on-surface-variant">
+                {new Date(filtered[filtered.length - 1].logged_date + "T00:00:00").toLocaleDateString(
+                  "en-US",
+                  { month: "short", day: "numeric" }
+                )}
               </div>
               <div className="absolute right-2 top-1 font-mono text-xs font-bold text-primary">
                 {chart.delta > 0 ? "+" : ""}
@@ -173,6 +193,11 @@ export default function WeightPage() {
             />
           </label>
         </div>
+        {weight !== "" && weightInvalid && (
+          <div role="alert" className="font-mono text-xs font-semibold text-error">
+            Weight must be between 30 and 300 kg.
+          </div>
+        )}
         <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
           Note (optional)
           <input
@@ -181,10 +206,15 @@ export default function WeightPage() {
             className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
           />
         </label>
-        <button className="pixel-btn w-full" onClick={handleSave}>
+        <button className="pixel-btn w-full disabled:opacity-50" disabled={weightInvalid} onClick={handleSave}>
           <span className="material-symbols-outlined text-base">monitor_weight</span>
           Save Weight
         </button>
+        {saved && (
+          <div role="alert" className="font-mono text-xs font-semibold uppercase text-tertiary">
+            Saved
+          </div>
+        )}
       </div>
 
       <div className="snes-window flex flex-col gap-3 p-4">

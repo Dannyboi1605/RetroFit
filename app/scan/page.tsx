@@ -30,6 +30,8 @@ export default function ScanPage() {
   const [saved, setSaved] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
+  const [manualCode, setManualCode] = useState("");
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
 
   useEffect(() => {
@@ -142,6 +144,41 @@ export default function ScanPage() {
     setResult(null);
   }
 
+  async function lookupManual(code: string) {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    setLookingUp(true);
+    try {
+      const res = await lookupBarcodeScan(trimmed);
+      if ("error" in res)
+        setResult({
+          name: "",
+          calories: "",
+          proteinG: "",
+          carbsG: "",
+          fatG: "",
+          servingSize: "Not found — fill in the details",
+          mealType: "snack",
+          source: "barcode",
+          barcode: trimmed,
+        });
+      else
+        setResult({
+          name: res.name,
+          calories: res.calories ? String(res.calories) : "",
+          proteinG: res.protein_g ? String(res.protein_g) : "",
+          carbsG: res.carbs_g ? String(res.carbs_g) : "",
+          fatG: res.fat_g ? String(res.fat_g) : "",
+          servingSize: res.serving_size ?? "per 100g",
+          mealType: "snack",
+          source: "barcode",
+          barcode: res.barcode,
+        });
+    } finally {
+      setLookingUp(false);
+    }
+  }
+
   return (
     <AppShell activeTab="scan">
       <div className="inline-block self-start border-2 border-outline bg-surface-container px-4 py-2">
@@ -152,14 +189,18 @@ export default function ScanPage() {
 
       <div className="grid grid-cols-2 gap-2">
         <button
-          className={`pixel-btn-secondary py-2 ${mode === "ai" ? "opacity-100" : "opacity-50"}`}
+          aria-pressed={mode === "ai"}
+          aria-label="Switch to AI scan"
+          className={`pixel-btn-secondary py-2 ${mode === "ai" ? "border-primary text-primary" : "opacity-60"}`}
           onClick={() => setMode("ai")}
         >
           <span className="material-symbols-outlined text-base">auto_awesome</span>
           AI Scan
         </button>
         <button
-          className={`pixel-btn-secondary py-2 ${mode === "barcode" ? "opacity-100" : "opacity-50"}`}
+          aria-pressed={mode === "barcode"}
+          aria-label="Switch to barcode scan"
+          className={`pixel-btn-secondary py-2 ${mode === "barcode" ? "border-primary text-primary" : "opacity-60"}`}
           onClick={() => setMode("barcode")}
         >
           <span className="material-symbols-outlined text-base">barcode_scanner</span>
@@ -199,7 +240,7 @@ export default function ScanPage() {
             />
           </label>
           {error && (
-            <div className="border-2 border-error bg-error/10 p-3 font-mono text-xs font-semibold text-error">
+            <div role="alert" className="border-2 border-error bg-error/10 p-3 font-mono text-xs font-semibold text-error">
               {error}
             </div>
           )}
@@ -266,8 +307,9 @@ export default function ScanPage() {
               {(["breakfast", "lunch", "dinner", "snack"] as const).map((m) => (
                 <button
                   key={m}
+                  aria-pressed={result.mealType === m}
                   className={`pixel-btn-secondary px-1 py-1 font-mono text-xs uppercase ${
-                    result.mealType === m ? "opacity-100" : "opacity-50"
+                    result.mealType === m ? "border-primary text-primary" : "opacity-60"
                   }`}
                   onClick={() => setResult({ ...result, mealType: m })}
                 >
@@ -311,7 +353,7 @@ export default function ScanPage() {
             )}
           </div>
           {error && (
-            <div className="border-2 border-error bg-error/10 p-3 font-mono text-xs font-semibold text-error">
+            <div role="alert" className="border-2 border-error bg-error/10 p-3 font-mono text-xs font-semibold text-error">
               {error}
             </div>
           )}
@@ -320,41 +362,24 @@ export default function ScanPage() {
             <div className="flex gap-2">
               <input
                 id="manual-barcode"
+                aria-label="Barcode number"
                 inputMode="numeric"
                 pattern="[0-9]*"
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
                 className="w-full border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
                 placeholder="e.g. 5449000000996"
-                onKeyDown={async (e) => {
-                  if (e.key !== "Enter") return;
-                  const code = (e.target as HTMLInputElement).value.trim();
-                  if (!code) return;
-                  const res = await lookupBarcodeScan(code);
-                  if ("error" in res)
-                    setResult({
-                      name: "",
-                      calories: "",
-                      proteinG: "",
-                      carbsG: "",
-                      fatG: "",
-                      servingSize: "Not found — fill in the details",
-                      mealType: "snack",
-                      source: "barcode",
-                      barcode: code,
-                    });
-                  else
-                    setResult({
-                      name: res.name,
-                      calories: res.calories ? String(res.calories) : "",
-                      proteinG: res.protein_g ? String(res.protein_g) : "",
-                      carbsG: res.carbs_g ? String(res.carbs_g) : "",
-                      fatG: res.fat_g ? String(res.fat_g) : "",
-                      servingSize: res.serving_size ?? "per 100g",
-                      mealType: "snack",
-                      source: "barcode",
-                      barcode: res.barcode,
-                    });
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") lookupManual(manualCode);
                 }}
               />
+              <button
+                className="pixel-btn-secondary shrink-0 px-3 disabled:opacity-50"
+                disabled={lookingUp}
+                onClick={() => lookupManual(manualCode)}
+              >
+                {lookingUp ? "Looking up..." : "Look Up"}
+              </button>
             </div>
           </label>
         </div>

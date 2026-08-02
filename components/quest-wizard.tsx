@@ -85,13 +85,24 @@ export default function QuestWizard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between font-mono text-xs text-on-surface-variant">
-        {STEPS.map((s) => (
-          <span key={s.id} className={s.id <= step ? "text-primary" : ""}>
-            {s.id === step ? "▶ " : ""}
-            {s.label}
-          </span>
-        ))}
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-on-surface-variant">
+          {STEPS.map((s) => (
+            <span key={s.id} className={s.id <= step ? "text-primary" : ""}>
+              {s.id < step ? (
+                <span className="material-symbols-outlined align-middle text-sm">check</span>
+              ) : s.id === step ? (
+                "▶ "
+              ) : (
+                ""
+              )}
+              {s.label}
+            </span>
+          ))}
+        </div>
+        <p className="font-mono text-[10px] uppercase text-on-surface-variant">
+          Step {step} of {STEPS.length}
+        </p>
       </div>
 
       <form
@@ -127,14 +138,16 @@ export default function QuestWizard() {
             </label>
             <div className="flex gap-4">
               {(["male", "female"] as const).map((g) => (
-                <button
-                  type="button"
-                  key={g}
-                  onClick={() => setGender(g)}
-                  className={`pixel-btn w-full ${gender === g ? "" : "opacity-50"}`}
-                >
-                  {g}
-                </button>
+                <div key={g} className={`w-full ${gender === g ? "border-2 border-primary" : ""}`}>
+                  <button
+                    type="button"
+                    aria-pressed={gender === g}
+                    onClick={() => setGender(g)}
+                    className={`pixel-btn w-full ${gender === g ? "" : "opacity-60"}`}
+                  >
+                    {g}
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -177,10 +190,16 @@ export default function QuestWizard() {
               <button
                 type="button"
                 key={a.id}
+                aria-pressed={activityLevel === a.id}
                 onClick={() => setActivityLevel(a.id)}
-                className={`snes-window flex items-center justify-between p-3 text-left ${activityLevel === a.id ? "opacity-100" : "opacity-60"}`}
+                style={activityLevel === a.id ? { borderColor: "var(--color-primary)" } : undefined}
+                className={`snes-window flex items-center justify-between p-3 text-left ${activityLevel === a.id ? "" : "opacity-60"}`}
               >
-                <span className="font-mono text-sm font-bold uppercase text-on-surface">{a.label}</span>
+                <span
+                  className={`font-mono text-sm font-bold uppercase ${activityLevel === a.id ? "text-primary" : "text-on-surface"}`}
+                >
+                  {a.label}
+                </span>
                 <span className="font-mono text-[10px] text-on-surface-variant">{a.desc}</span>
               </button>
             ))}
@@ -236,10 +255,16 @@ export default function QuestWizard() {
               <button
                 type="button"
                 key={g.id}
+                aria-pressed={goal === g.id}
                 onClick={() => setGoal(g.id)}
-                className={`snes-window flex items-center justify-between p-3 text-left ${goal === g.id ? "opacity-100" : "opacity-60"}`}
+                style={goal === g.id ? { borderColor: "var(--color-primary)" } : undefined}
+                className={`snes-window flex items-center justify-between p-3 text-left ${goal === g.id ? "" : "opacity-60"}`}
               >
-                <span className="font-mono text-sm font-bold uppercase text-on-surface">{g.label}</span>
+                <span
+                  className={`font-mono text-sm font-bold uppercase ${goal === g.id ? "text-primary" : "text-on-surface"}`}
+                >
+                  {g.label}
+                </span>
                 <span className="font-mono text-[10px] text-on-surface-variant">{g.desc}</span>
               </button>
             ))}
@@ -249,13 +274,18 @@ export default function QuestWizard() {
           </div>
         )}
 
-        {state?.error && <p className="font-mono text-xs text-error">{state.error}</p>}
+        {state?.error && (
+          <p role="alert" className="font-mono text-xs text-error">
+            {state.error}
+          </p>
+        )}
 
         {step < STEPS.length && (
           <button
             type="button"
             className="pixel-btn w-full"
             disabled={!canContinue || pending}
+            aria-disabled={!canContinue || pending}
             onClick={goNext}
           >
             Continue
@@ -265,6 +295,16 @@ export default function QuestWizard() {
         {step === 5 && (
           <button type="submit" className="pixel-btn w-full" disabled={pending}>
             {pending ? "Saving..." : "Complete Quest"}
+          </button>
+        )}
+
+        {step > 1 && (
+          <button
+            type="button"
+            className="pixel-btn-secondary w-full"
+            onClick={() => setStep((s) => s - 1)}
+          >
+            Back
           </button>
         )}
       </form>

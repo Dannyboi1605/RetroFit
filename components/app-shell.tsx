@@ -7,7 +7,7 @@ const TABS = [
   { id: "log", label: "Log", icon: "reorder", href: "/log" },
   { id: "scan", label: "Scan", icon: "qr_code_scanner", href: "/scan" },
   { id: "weight", label: "Weight", icon: "monitor_weight", href: "/weight" },
-  { id: "tdee", label: "TDEE", icon: "analytics", href: "/settings" },
+  { id: "tdee", label: "Settings", icon: "analytics", href: "/settings" },
 ] as const;
 
 export type TabId = (typeof TABS)[number]["id"];
@@ -22,7 +22,7 @@ export default function AppShell({
   const router = useRouter();
   return (
     <>
-      <header className="fixed top-0 z-50 mx-auto flex h-16 w-full max-w-[600px] items-center justify-between border-b-2 border-outline-variant bg-surface px-4">
+      <header className="fixed top-0 z-50 mx-auto flex h-16 w-full max-w-app items-center justify-between border-b-2 border-outline-variant bg-surface px-4">
         <div className="truncate font-headline text-lg font-extrabold uppercase tracking-widest text-primary">
           RetroFit 8-Bit
         </div>
@@ -30,6 +30,7 @@ export default function AppShell({
           <button
             className="text-on-surface-variant transition-transform active:scale-95"
             onClick={() => router.push("/settings")}
+            aria-label="Settings"
           >
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
               settings
@@ -38,11 +39,11 @@ export default function AppShell({
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto flex max-w-[600px] flex-col gap-6 px-4 pb-24 pt-20">
+      <main className="relative z-10 mx-auto flex w-full max-w-app flex-col gap-6 px-4 pb-24 pt-20">
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-1/2 z-50 flex h-20 w-full max-w-[600px] -translate-x-1/2 items-center justify-around border-t-2 border-outline-variant bg-surface-container-lowest/70 px-2 pb-2 backdrop-blur-md">
+      <nav className="fixed bottom-0 left-1/2 z-50 flex h-20 w-full max-w-app -translate-x-1/2 items-center justify-around border-t-2 border-outline-variant bg-surface-container-lowest/70 px-2 pb-2 backdrop-blur-md">
         {TABS.map((tab) => {
           const active = tab.id === activeTab;
           return (
@@ -52,6 +53,8 @@ export default function AppShell({
                 active ? "text-primary" : "text-on-surface-variant opacity-70 hover:opacity-100"
               }`}
               onClick={() => tab.href && router.push(tab.href)}
+              aria-label={tab.label}
+              aria-current={active ? "page" : undefined}
             >
               {active && <span className="mb-1 text-[8px] text-primary">▲</span>}
               <span
