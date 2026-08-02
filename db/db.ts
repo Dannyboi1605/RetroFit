@@ -105,3 +105,45 @@ export async function listMeals(date: string): Promise<Meal[]> {
     .filter((m) => m.deleted === 0)
     .sortBy("created_at");
 }
+
+export async function addWeight(input: {
+  logged_date: string;
+  weight_kg: number;
+  note?: string;
+}): Promise<string> {
+  const client_id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await db.transaction("rw", [db.weightLogs, db.syncQueue], async () => {
+    const existing = await db.weightLogs.where("logged_date").equals(input.logged_date).first();
+    if (existing) {
+      const queued = await db.syncQueue.where("client_id").equals(existing.client_id).toArray();
+      await db.syncQueue.bulkDelete(queued.map((q) => q.client_id));
+      if (existing.synced === 1) {
+        await db.syncQueue.add({ client_id: existing.client_id, table: "weightLogs", op: "delete", created_at: now });
+      }
+      await db.weightLogs.delete(existing.client_id);
+    }
+    await db.weightLogs.add({
+      client_id,
+      logged_date: input.logged_date,
+      weight_kg: input.weight_kg,
+      note: input.note,
+      created_at: now,
+      synced: 0,
+      deleted: 0,
+    });
+    await db.syncQueue.add({ client_id, table: "weightLogs", op: "insert", created_at: now });
+  });
+  return client_id;
+}
+
+export async function listWeightLogs(rangeDays?: number): Promise<WeightLog[]> {
+  const all = await db.weightLogs
+    .filter((w) => w.deleted === 0)
+    .sortBy("logged_date");
+  if (!rangeDays) return all;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - rangeDays);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return all.filter((w) => w.logged_date >= cutoffStr);
+}
