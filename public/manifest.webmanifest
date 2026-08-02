@@ -1,0 +1,16 @@
+{
+  "name": "RetroFit 8-Bit",
+  "short_name": "RetroFit",
+  "description": "8-bit calorie and macro tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1609",
+  "theme_color": "#0c1609",
+  "icons": [
+    {
+      "src": "/RF logo.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

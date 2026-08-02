@@ -7,8 +7,15 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
-  title: "RetroFit",
+  title: "RetroFit 8-Bit",
   description: "8-bit calorie and macro tracker",
+  manifest: "/manifest.webmanifest",
+  icons: [{ rel: "icon", url: "/RF logo.png" }],
+  appleWebApp: {
+    capable: true,
+    title: "RetroFit 8-Bit",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default function RootLayout({
