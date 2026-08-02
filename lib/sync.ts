@@ -56,15 +56,16 @@ export async function pushPending(): Promise<number> {
   return processed;
 }
 
+let syncStarted = false;
+
 export function initSync() {
-  let started = false;
+  if (syncStarted) return;
+  syncStarted = true;
+
   const run = () => {
     if (navigator.onLine) pushPending();
   };
 
-  if (!started) {
-    started = true;
-    window.addEventListener("online", run);
-    setInterval(run, 15000);
-  }
+  window.addEventListener("online", run);
+  setInterval(run, 15000);
 }

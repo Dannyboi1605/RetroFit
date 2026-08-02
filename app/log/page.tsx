@@ -17,10 +17,22 @@ const MEAL_ICONS: Record<(typeof MEAL_TYPES)[number], string> = {
 export default function LogPage() {
   const [today, setToday] = useState(new Date().toISOString().slice(0, 10));
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [online, setOnline] = useState(true);
   const [modalMealType, setModalMealType] = useState<(typeof MEAL_TYPES)[number] | null>(null);
 
   useEffect(() => {
     initSync();
+  }, []);
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
   }, []);
 
   async function refresh() {
@@ -83,7 +95,7 @@ export default function LogPage() {
               Offline-first
             </div>
             <div className="font-mono text-xl font-bold text-tertiary">
-              {navigator.onLine ? "SYNCED" : "OFFLINE"}
+              {online ? "SYNCED" : "OFFLINE"}
             </div>
           </div>
         </div>
