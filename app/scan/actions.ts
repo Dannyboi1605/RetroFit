@@ -1,10 +1,20 @@
 "use server";
 
-import { analyzeMealImage, lookupBarcode, AIError, type AIMealResult, type BarcodeResult } from "@/lib/ai";
+import { analyzeMealImage, analyzeMealText, lookupBarcode, AIError, type MealAnalysisResult, type BarcodeResult } from "@/lib/ai";
 
-export async function analyzeScan(imageDataUrl: string): Promise<AIMealResult | { error: string }> {
+export async function analyzeScan(dataUrl: string, userNotes?: string): Promise<MealAnalysisResult | { error: string }> {
   try {
-    return await analyzeMealImage(imageDataUrl);
+    return await analyzeMealImage(dataUrl, userNotes);
+  } catch (e) {
+    if (e instanceof AIError) return { error: e.message };
+    return { error: "AI analysis failed — try again" };
+  }
+}
+
+export async function analyzeTextScan(description: string): Promise<MealAnalysisResult | { error: string }> {
+  try {
+    if (!description.trim()) return { error: "Describe your meal first" };
+    return await analyzeMealText(description);
   } catch (e) {
     if (e instanceof AIError) return { error: e.message };
     return { error: "AI analysis failed — try again" };

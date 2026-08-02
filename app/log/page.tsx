@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import AddEntryModal from "@/components/add-entry-modal";
 import SaveToast from "@/components/save-toast";
@@ -25,6 +26,7 @@ type Targets = {
 };
 
 export default function LogPage() {
+  const router = useRouter();
   const [today] = useState(todayStr());
   const [selectedDate, setSelectedDate] = useState(today);
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -32,6 +34,7 @@ export default function LogPage() {
   const [targets, setTargets] = useState<Targets | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [modal, setModal] = useState<{ mealType: (typeof MEAL_TYPES)[number]; editing?: Meal } | null>(null);
+  const [chooser, setChooser] = useState<(typeof MEAL_TYPES)[number] | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
 
   useEffect(() => {
@@ -196,7 +199,7 @@ export default function LogPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
         {MEAL_TYPES.map((type) => {
           const entries = meals.filter((m) => m.meal_type === type);
           const total = entries.reduce((acc, m) => acc + m.calories, 0);
@@ -268,7 +271,7 @@ export default function LogPage() {
               </div>
               <button
                 className="pixel-btn mt-2 w-full"
-                onClick={() => setModal({ mealType: type })}
+                onClick={() => setChooser(type)}
               >
                 <span className="material-symbols-outlined text-base">add</span>
                 Add Entry
@@ -277,6 +280,61 @@ export default function LogPage() {
           );
         })}
       </div>
+
+      {chooser && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add entry"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setChooser(null);
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setChooser(null);
+          }}
+        >
+          <div className="snes-window flex w-full max-w-sm flex-col gap-5 p-6">
+            <div className="flex items-center justify-between border-b-2 border-surface-variant pb-2">
+              <h2 className="font-headline text-lg font-bold uppercase tracking-widest text-primary">
+                Add {chooser}
+              </h2>
+              <button
+                className="text-on-surface-variant transition-colors hover:text-primary"
+                aria-label="Close"
+                onClick={() => setChooser(null)}
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                className="flex flex-col items-center gap-2 border-2 border-outline-variant bg-surface p-4 font-mono text-xs font-bold uppercase transition-colors hover:border-primary hover:text-primary"
+                onClick={() => router.push(`/scan?date=${selectedDate}`)}
+              >
+                <span className="material-symbols-outlined text-3xl text-primary">auto_awesome</span>
+                Scan Meal
+                <span className="text-[10px] font-semibold normal-case text-on-surface-variant">
+                  AI photo estimate
+                </span>
+              </button>
+              <button
+                className="flex flex-col items-center gap-2 border-2 border-outline-variant bg-surface-container p-4 font-mono text-xs font-bold uppercase transition-colors hover:border-primary hover:text-primary"
+                onClick={() => {
+                  setModal({ mealType: chooser });
+                  setChooser(null);
+                }}
+              >
+                <span className="material-symbols-outlined text-3xl text-tertiary">edit_note</span>
+                Manual Entry
+                <span className="text-[10px] font-normal normal-case text-on-surface-variant">
+                  Type the details yourself
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal && (
         <AddEntryModal

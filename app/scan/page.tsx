@@ -6,32 +6,85 @@ import ScanCamera, { fileToDataUrl } from "@/components/scan-camera";
 import AddEntryModal from "@/components/add-entry-modal";
 import SaveToast from "@/components/save-toast";
 import { addMeal } from "@/db/db";
-import { analyzeScan, lookupBarcodeScan } from "./actions";
+import { analyzeScan, analyzeTextScan, lookupBarcodeScan } from "./actions";
 import { todayStr } from "@/lib/date";
+import { caloriesFromMacros } from "@/lib/tdee";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+type ItemRow = {
+  name: string;
+  portion: string;
+  calories: string;
+  proteinG: string;
+  carbsG: string;
+  fatG: string;
+};
+
+type ReviewResult = {
+  description: string;
+  reasoning?: string;
+  items: ItemRow[];
+  mealType: MealType;
+  source: "ai_scan" | "barcode";
+  barcode?: string;
+};
+
+const EMPTY_ITEM: ItemRow = { name: "", portion: "per 100g", calories: "", proteinG: "", carbsG: "", fatG: "" };
+
+function sumItems(items: ItemRow[]) {
+  return items.reduce(
+    (t, i) => {
+      t.calories += Number(i.calories) || 0;
+      t.proteinG += Number(i.proteinG) || 0;
+      t.carbsG += Number(i.carbsG) || 0;
+      t.fatG += Number(i.fatG) || 0;
+      return t;
+    },
+    { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
+  );
+}
 
 export default function ScanPage() {
   const [mode, setMode] = useState<"ai" | "barcode">("ai");
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{
-    name: string;
-    calories: string;
-    proteinG: string;
-    carbsG: string;
-    fatG: string;
-    servingSize: string;
-    mealType: MealType;
-    source: "ai_scan" | "barcode";
-    barcode?: string;
-  } | null>(null);
+  const [notes, setNotes] = useState("");
+  const [describe, setDescribe] = useState("");
+  const [result, setResult] = useState<ReviewResult | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
+
+  function barcodeReview(res: {
+    name: string;
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+    serving_size?: string;
+    barcode: string;
+  }): ReviewResult {
+    return {
+      description: res.name,
+      items: [
+        {
+          name: res.name,
+          portion: res.serving_size ?? "per 100g",
+          calories: res.calories ? String(res.calories) : "",
+          proteinG: res.protein_g ? String(res.protein_g) : "",
+          carbsG: res.carbs_g ? String(res.carbs_g) : "",
+          fatG: res.fat_g ? String(res.fat_g) : "",
+        },
+      ],
+      mealType: "snack",
+      source: "barcode",
+      barcode: res.barcode,
+    };
+  }
 
   useEffect(() => {
     if (mode !== "barcode" || result) return;
@@ -52,31 +105,17 @@ export default function ScanPage() {
             scannerRef.current = null;
             setScanning(false);
             const res = await lookupBarcodeScan(decodedText);
-            if ("error" in res) {
-              setResult({
-                name: "",
-                calories: "",
-                proteinG: "",
-                carbsG: "",
-                fatG: "",
-                servingSize: "Barcode: " + decodedText,
-                mealType: "snack",
-                source: "barcode",
-                barcode: decodedText,
-              });
-            } else {
-              setResult({
-                name: res.name,
-                calories: res.calories ? String(res.calories) : "",
-                proteinG: res.protein_g ? String(res.protein_g) : "",
-                carbsG: res.carbs_g ? String(res.carbs_g) : "",
-                fatG: res.fat_g ? String(res.fat_g) : "",
-                servingSize: res.serving_size ?? "per 100g",
-                mealType: "snack",
-                source: "barcode",
-                barcode: res.barcode,
-              });
-            }
+            setResult(
+              "error" in res
+                ? {
+                    description: "",
+                    items: [{ ...EMPTY_ITEM, portion: "Barcode: " + decodedText }],
+                    mealType: "snack",
+                    source: "barcode",
+                    barcode: decodedText,
+                  }
+                : barcodeReview(res)
+            );
           },
           () => {}
         )
@@ -96,47 +135,97 @@ export default function ScanPage() {
     };
   }, [mode, result]);
 
-  async function handleCapture(dataUrl: string) {
-    setAnalyzing(true);
-    setError(null);
-    setFlash(null);
-    const res = await analyzeScan(dataUrl);
-    setAnalyzing(false);
-    if ("error" in res) {
-      setError(res.error);
-      return;
-    }
+  function applyResult(res: { description: string; reasoning?: string; items: { name: string; portion_description: string; calories: number; protein_g: number; carbs_g: number; fat_g: number }[] }) {
+    setNotes("");
+    setDescribe("");
     setResult({
-      name: res.name,
-      calories: String(res.calories),
-      proteinG: String(res.protein_g),
-      carbsG: String(res.carbs_g),
-      fatG: String(res.fat_g),
-      servingSize: res.serving_size,
+      description: res.description,
+      reasoning: res.reasoning,
+      items: res.items.map((i) => ({
+        name: i.name,
+        portion: i.portion_description,
+        calories: String(i.calories),
+        proteinG: String(i.protein_g),
+        carbsG: String(i.carbs_g),
+        fatG: String(i.fat_g),
+      })),
       mealType: "snack",
       source: "ai_scan",
     });
   }
 
+  async function handleCapture(dataUrl: string, note?: string) {
+    setAnalyzing(true);
+    setError(null);
+    setFlash(null);
+    const res = await analyzeScan(dataUrl, note);
+    setAnalyzing(false);
+    if ("error" in res) {
+      setError(res.error);
+      return;
+    }
+    applyResult(res);
+  }
+
+  async function handleDescribe() {
+    if (!describe.trim()) {
+      setError("Describe your meal first");
+      return;
+    }
+    setAnalyzing(true);
+    setError(null);
+    setFlash(null);
+    const res = await analyzeTextScan(describe);
+    setAnalyzing(false);
+    if ("error" in res) {
+      setError(res.error);
+      return;
+    }
+    applyResult(res);
+  }
+
   async function handleFile(file: File | undefined) {
     if (!file) return;
     try {
-      await handleCapture(await fileToDataUrl(file));
+      await handleCapture(await fileToDataUrl(file), notes);
     } catch {
       setError("Could not read that file — try another photo");
     }
   }
 
+  function setItem(index: number, patch: Partial<ItemRow>) {
+    setResult((r) => (r ? { ...r, items: r.items.map((it, j) => (j === index ? { ...it, ...patch } : it)) } : r));
+  }
+
+  function setMacro(index: number, key: "proteinG" | "carbsG" | "fatG", value: string) {
+    setResult((r) => {
+      if (!r) return r;
+      const next = { ...r.items[index], [key]: value };
+      const p = Number(next.proteinG) || 0;
+      const c = Number(next.carbsG) || 0;
+      const f = Number(next.fatG) || 0;
+      if (p + c + f > 0) next.calories = String(caloriesFromMacros(p, c, f));
+      return { ...r, items: r.items.map((it, j) => (j === index ? next : it)) };
+    });
+  }
+
   async function handleSave() {
-    if (!result || !result.name || !result.calories) return;
+    if (!result) return;
+    const t = sumItems(result.items);
+    const name = result.description.trim() || result.items.find((i) => i.name)?.name || "Meal";
+    if (!t.calories) {
+      setError("Enter calories before saving");
+      return;
+    }
     await addMeal({
-      logged_date: todayStr(),
+      // log to the date /log asked for (e.g. past day), defaulting to today
+      logged_date: new URLSearchParams(window.location.search).get("date") || todayStr(),
       meal_type: result.mealType,
-      name: result.name,
-      calories: Number(result.calories),
-      protein_g: Number(result.proteinG) || 0,
-      carbs_g: Number(result.carbsG) || 0,
-      fat_g: Number(result.fatG) || 0,
+      name,
+      calories: t.calories,
+      protein_g: t.proteinG,
+      carbs_g: t.carbsG,
+      fat_g: t.fatG,
       source: result.source,
     });
     setFlash("Meal logged!");
@@ -149,34 +238,23 @@ export default function ScanPage() {
     setLookingUp(true);
     try {
       const res = await lookupBarcodeScan(trimmed);
-      if ("error" in res)
-        setResult({
-          name: "",
-          calories: "",
-          proteinG: "",
-          carbsG: "",
-          fatG: "",
-          servingSize: "Not found — fill in the details",
-          mealType: "snack",
-          source: "barcode",
-          barcode: trimmed,
-        });
-      else
-        setResult({
-          name: res.name,
-          calories: res.calories ? String(res.calories) : "",
-          proteinG: res.protein_g ? String(res.protein_g) : "",
-          carbsG: res.carbs_g ? String(res.carbs_g) : "",
-          fatG: res.fat_g ? String(res.fat_g) : "",
-          servingSize: res.serving_size ?? "per 100g",
-          mealType: "snack",
-          source: "barcode",
-          barcode: res.barcode,
-        });
+      setResult(
+        "error" in res
+          ? {
+              description: "",
+              items: [{ ...EMPTY_ITEM, portion: "Not found — fill in the details" }],
+              mealType: "snack",
+              source: "barcode",
+              barcode: trimmed,
+            }
+          : barcodeReview(res)
+      );
     } finally {
       setLookingUp(false);
     }
   }
+
+  const t = result ? sumItems(result.items) : null;
 
   return (
     <AppShell activeTab="scan">
@@ -212,32 +290,73 @@ export default function ScanPage() {
           <h2 className="border-b-2 border-surface-variant pb-2 font-headline text-lg font-bold uppercase tracking-widest text-tertiary">
             Point &amp; Capture
           </h2>
-          {analyzing ? (
-            <div className="flex flex-col items-center gap-3 py-10">
-              <span className="material-symbols-outlined animate-pulse text-4xl text-primary">auto_awesome</span>
-              <div className="font-mono text-xs font-semibold uppercase text-on-surface-variant">
-                Analyzing meal...
-              </div>
+          <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+            <div className="flex flex-col gap-4">
+              {analyzing ? (
+                <div className="flex flex-col items-center gap-3 py-10">
+                  <span className="material-symbols-outlined animate-pulse text-4xl text-primary">auto_awesome</span>
+                  <div className="font-mono text-xs font-semibold uppercase text-on-surface-variant">
+                    Analyzing meal...
+                  </div>
+                </div>
+              ) : (
+                <ScanCamera onCapture={(url) => handleCapture(url, notes)} onError={setError} />
+              )}
+              <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
+                Notes (optional)
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. cooked in oil, extra gravy, chicken is fried"
+                  className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                />
+              </label>
+              <label
+                className={`pixel-btn-secondary w-full cursor-pointer ${analyzing ? "pointer-events-none opacity-50" : ""}`}
+                aria-disabled={analyzing}
+              >
+                <span className="material-symbols-outlined text-base">photo_library</span>
+                Upload Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    handleFile(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
             </div>
-          ) : (
-            <ScanCamera onCapture={handleCapture} onError={setError} />
-          )}
-          <label
-            className={`pixel-btn-secondary w-full cursor-pointer ${analyzing ? "pointer-events-none opacity-50" : ""}`}
-            aria-disabled={analyzing}
-          >
-            <span className="material-symbols-outlined text-base">photo_library</span>
-            Upload Photo
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(e) => {
-                handleFile(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-          </label>
+            {!analyzing && (
+              <div className="flex flex-col gap-4 lg:border-l-2 lg:border-outline-variant lg:pl-6">
+                <div className="flex items-center gap-2 lg:hidden">
+                  <div className="h-0 flex-1 border-t-2 border-outline-variant" />
+                  <span className="font-mono text-[10px] font-bold uppercase text-on-surface-variant">OR</span>
+                  <div className="h-0 flex-1 border-t-2 border-outline-variant" />
+                </div>
+                <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
+                  Describe your meal
+                  <textarea
+                    value={describe}
+                    onChange={(e) => setDescribe(e.target.value)}
+                    rows={6}
+                    placeholder="e.g. half a plate of fried rice with an egg, two pieces of fried chicken, and a bowl of soup"
+                    className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                  />
+                </label>
+                <button
+                  className="pixel-btn-secondary w-full"
+                  onClick={handleDescribe}
+                  disabled={!describe.trim()}
+                >
+                  <span className="material-symbols-outlined text-base">keyboard_alt</span>
+                  Analyze Description
+                </button>
+              </div>
+            )}
+          </div>
           {error && (
             <div role="alert" className="border-2 border-error bg-error/10 p-3 font-mono text-xs font-semibold text-error">
               {error}
@@ -249,6 +368,7 @@ export default function ScanPage() {
           </button>
         </div>
       )}
+
       {result && (
         <div className="snes-window flex flex-col gap-4 p-4">
           <h2 className="border-b-2 border-surface-variant pb-2 font-headline text-lg font-bold uppercase tracking-widest text-tertiary">
@@ -259,47 +379,85 @@ export default function ScanPage() {
               Barcode: {result.barcode}
             </div>
           )}
-          {result.servingSize && (
-            <div className="font-mono text-[11px] uppercase text-on-surface-variant">
-              Detected: {result.servingSize}
+          <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
+            Description
+            <input
+              value={result.description}
+              onChange={(e) => setResult({ ...result, description: e.target.value })}
+              placeholder="e.g. Nasi Lemak with Fried Chicken"
+              className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+            />
+          </label>
+
+          {result.items.map((item, i) => (
+            <fieldset key={i} className="flex flex-col gap-2 border-2 border-outline-variant p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] font-bold uppercase text-tertiary">Item {i + 1}</span>
+                  <input
+                    aria-label={`Item ${i + 1} name`}
+                    value={item.name}
+                    onChange={(e) => setItem(i, { name: e.target.value })}
+                    placeholder="Name"
+                    className="w-full border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                  />
+                </div>
+              </div>
+              <div className="font-mono text-[11px] uppercase text-on-surface-variant">{item.portion}</div>
+              <div className="grid grid-cols-4 gap-2">
+                <label className="flex flex-col gap-1 font-mono text-[10px] uppercase text-on-surface-variant">
+                  Kcal
+                  <input
+                    type="number"
+                    min={0}
+                    value={item.calories}
+                    onChange={(e) => setItem(i, { calories: e.target.value })}
+                    className="border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                  />
+                </label>
+                {([
+                  ["P (g)", "proteinG"],
+                  ["C (g)", "carbsG"],
+                  ["F (g)", "fatG"],
+                ] as const).map(([label, key]) => (
+                  <label key={key} className="flex flex-col gap-1 font-mono text-[10px] uppercase text-on-surface-variant">
+                    {label}
+                    <input
+                      type="number"
+                      min={0}
+                      value={item[key]}
+                      onChange={(e) => setMacro(i, key, e.target.value)}
+                      className="border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+
+          <div className="border-2 border-primary bg-surface-container p-3">
+            <div className="flex justify-between font-mono text-sm font-bold uppercase text-primary">
+              <span>Total</span>
+              <span>{t ? `${t.calories} kcal` : "—"}</span>
             </div>
-          )}
-          <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
-            Name
-            <input
-              value={result.name}
-              onChange={(e) => setResult({ ...result, name: e.target.value })}
-              className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
-            />
-          </label>
-          <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
-            Calories
-            <input
-              type="number"
-              min={0}
-              value={result.calories}
-              onChange={(e) => setResult({ ...result, calories: e.target.value })}
-              className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
-            />
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "P (g)", key: "proteinG" as const },
-              { label: "C (g)", key: "carbsG" as const },
-              { label: "F (g)", key: "fatG" as const },
-            ].map((f) => (
-              <label key={f.key} className="flex flex-col gap-1 font-mono text-[10px] uppercase text-on-surface-variant">
-                {f.label}
-                <input
-                  type="number"
-                  min={0}
-                  value={result[f.key]}
-                  onChange={(e) => setResult({ ...result, [f.key]: e.target.value })}
-                  className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
-                />
-              </label>
-            ))}
+            <div className="mt-1 flex justify-between font-mono text-xs text-on-surface-variant">
+              <span>P {t ? `${t.proteinG}g` : "—"}</span>
+              <span>C {t ? `${t.carbsG}g` : "—"}</span>
+              <span>F {t ? `${t.fatG}g` : "—"}</span>
+            </div>
           </div>
+
+          {result.reasoning && (
+            <details className="border-2 border-outline-variant p-2">
+              <summary className="cursor-pointer font-mono text-[11px] font-bold uppercase text-on-surface-variant">
+                AI Estimation Reasoning
+              </summary>
+              <p className="mt-2 whitespace-pre-wrap font-mono text-xs leading-relaxed text-on-surface-variant">
+                {result.reasoning}
+              </p>
+            </details>
+          )}
+
           <div className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
             Meal
             <div className="grid grid-cols-4 gap-2">
@@ -336,7 +494,7 @@ export default function ScanPage() {
           <h2 className="border-b-2 border-surface-variant pb-2 font-headline text-lg font-bold uppercase tracking-widest text-tertiary">
             Scan Barcode
           </h2>
-          <div className="relative aspect-square w-full overflow-hidden border-2 border-outline-variant bg-surface-container">
+          <div className="relative aspect-square w-full overflow-hidden border-2 border-outline-variant bg-surface-container lg:mx-auto lg:max-w-md">
             <div id="barcode-container" className="h-full w-full" />
             {scanning && (
               <div className="pointer-events-none absolute inset-0">

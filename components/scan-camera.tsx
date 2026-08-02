@@ -110,7 +110,7 @@ export default function ScanCamera({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative aspect-square w-full overflow-hidden border-2 border-outline-variant bg-surface-container">
+      <div className="relative aspect-square w-full overflow-hidden border-2 border-outline-variant bg-surface-container lg:mx-auto lg:max-w-md">
         <video
           ref={videoRef}
           autoPlay

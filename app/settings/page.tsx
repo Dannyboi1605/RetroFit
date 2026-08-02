@@ -32,9 +32,11 @@ export default async function SettingsPage() {
         </h1>
       </div>
 
-      <GoalPicker goal={profile.goal as Goal} />
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+        <GoalPicker goal={profile.goal as Goal} />
 
-      <TargetsForm profile={profile} />
+        <TargetsForm profile={profile} />
+      </div>
 
       <SyncStatus />
 

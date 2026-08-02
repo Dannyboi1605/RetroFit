@@ -80,6 +80,7 @@ export default function WeightPage() {
         </h1>
       </div>
 
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
       <div className="snes-window flex flex-col gap-4 p-4">
         <div className="flex items-end justify-between">
           <div>
@@ -208,6 +209,7 @@ export default function WeightPage() {
           <span className="material-symbols-outlined text-base">monitor_weight</span>
           Save Weight
         </button>
+      </div>
       </div>
 
       {flash && <SaveToast key={flash} message={flash} onDone={() => setFlash(null)} />}
