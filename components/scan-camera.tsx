@@ -82,7 +82,7 @@ export default function ScanCamera({
             type="file"
             accept="image/*"
             capture="environment"
-            className="hidden"
+            className="sr-only"
             onChange={(e) => onFile(e.target.files?.[0])}
           />
         </label>

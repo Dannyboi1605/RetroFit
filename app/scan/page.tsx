@@ -119,7 +119,11 @@ export default function ScanPage() {
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
-    await handleCapture(await fileToDataUrl(file));
+    try {
+      await handleCapture(await fileToDataUrl(file));
+    } catch {
+      setError("Could not read that file — try another photo");
+    }
   }
 
   async function handleSave() {
@@ -178,14 +182,20 @@ export default function ScanPage() {
           ) : (
             <ScanCamera onCapture={handleCapture} onError={setError} />
           )}
-          <label className="pixel-btn-secondary w-full cursor-pointer">
+          <label
+            className={`pixel-btn-secondary w-full cursor-pointer ${analyzing ? "pointer-events-none opacity-50" : ""}`}
+            aria-disabled={analyzing}
+          >
             <span className="material-symbols-outlined text-base">photo_library</span>
             Upload Photo
             <input
               type="file"
               accept="image/*"
-              className="hidden"
-              onChange={(e) => handleFile(e.target.files?.[0])}
+              className="sr-only"
+              onChange={(e) => {
+                handleFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
             />
           </label>
           {error && (
