@@ -1,9 +1,13 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+
 const TABS = [
-  { id: "home", label: "Home", icon: "home" },
-  { id: "log", label: "Log", icon: "reorder" },
-  { id: "scan", label: "Scan", icon: "qr_code_scanner" },
-  { id: "weight", label: "Weight", icon: "monitor_weight" },
-  { id: "tdee", label: "TDEE", icon: "analytics" },
+  { id: "home", label: "Home", icon: "home", href: "/" },
+  { id: "log", label: "Log", icon: "reorder", href: "/log" },
+  { id: "scan", label: "Scan", icon: "qr_code_scanner", href: null },
+  { id: "weight", label: "Weight", icon: "monitor_weight", href: "/weight" },
+  { id: "tdee", label: "TDEE", icon: "analytics", href: "/settings" },
 ] as const;
 
 export type TabId = (typeof TABS)[number]["id"];
@@ -15,6 +19,7 @@ export default function AppShell({
   activeTab: TabId;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   return (
     <>
       <header className="fixed top-0 z-50 mx-auto flex h-16 w-full max-w-[600px] items-center justify-between border-b-2 border-outline-variant bg-surface px-4">
@@ -22,12 +27,10 @@ export default function AppShell({
           RetroFit 8-Bit
         </div>
         <div className="flex items-center gap-4">
-          <button className="text-on-surface-variant transition-transform active:scale-95">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-              account_circle
-            </span>
-          </button>
-          <button className="text-on-surface-variant transition-transform active:scale-95">
+          <button
+            className="text-on-surface-variant transition-transform active:scale-95"
+            onClick={() => router.push("/settings")}
+          >
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
               settings
             </span>
@@ -48,6 +51,7 @@ export default function AppShell({
               className={`flex w-16 flex-col items-center justify-center transition-all active:translate-y-0.5 ${
                 active ? "text-primary" : "text-on-surface-variant opacity-70 hover:opacity-100"
               }`}
+              onClick={() => tab.href && router.push(tab.href)}
             >
               {active && <span className="mb-1 text-[8px] text-primary">▲</span>}
               <span
