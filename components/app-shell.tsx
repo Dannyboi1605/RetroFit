@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 const TABS = [
   { id: "home", label: "Home", icon: "home", href: "/" },
   { id: "log", label: "Log", icon: "reorder", href: "/log" },
-  { id: "scan", label: "Scan", icon: "qr_code_scanner", href: null },
+  { id: "scan", label: "Scan", icon: "qr_code_scanner", href: "/scan" },
   { id: "weight", label: "Weight", icon: "monitor_weight", href: "/weight" },
   { id: "tdee", label: "TDEE", icon: "analytics", href: "/settings" },
 ] as const;

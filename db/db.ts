@@ -52,6 +52,7 @@ export async function addMeal(input: {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  source?: Meal["source"];
 }): Promise<string> {
   const client_id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -65,7 +66,7 @@ export async function addMeal(input: {
       protein_g: input.protein_g,
       carbs_g: input.carbs_g,
       fat_g: input.fat_g,
-      source: "manual",
+      source: input.source ?? "manual",
       created_at: now,
       synced: 0,
       deleted: 0,
