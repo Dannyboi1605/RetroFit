@@ -45,6 +45,25 @@ export async function pushPending(): Promise<number> {
       await db[entry.table].update(entry.client_id, { synced: 1 });
       await db.syncQueue.delete(entry.client_id);
       processed++;
+    } else if (entry.op === "update") {
+      const local = (await db[entry.table].get(entry.client_id)) as Record<string, unknown> | undefined;
+      if (!local || local.deleted === 1) continue;
+
+      const payload: Record<string, unknown> = { user_id: user.id };
+      for (const col of meta.columns.split(", ")) {
+        if (col in local) payload[col] = local[col];
+      }
+
+      const { error } = await supabase.from(meta.table).upsert(payload, { onConflict: "client_id" });
+
+      if (error) {
+        console.error("sync update failed", entry.client_id, error.message);
+        continue;
+      }
+
+      await db[entry.table].update(entry.client_id, { synced: 1 });
+      await db.syncQueue.delete(entry.client_id);
+      processed++;
     } else if (entry.op === "delete") {
       await supabase.from(meta.table).delete().eq("client_id", entry.client_id);
       await db[entry.table].delete(entry.client_id);

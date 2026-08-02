@@ -15,14 +15,21 @@ const MEAL_ICONS: Record<(typeof MEAL_TYPES)[number], string> = {
 };
 
 export default function LogPage() {
-  const [today, setToday] = useState(new Date().toISOString().slice(0, 10));
+  const [today] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(today);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [online, setOnline] = useState(true);
-  const [modalMealType, setModalMealType] = useState<(typeof MEAL_TYPES)[number] | null>(null);
+  const [modal, setModal] = useState<{ mealType: (typeof MEAL_TYPES)[number]; editing?: Meal } | null>(null);
 
   useEffect(() => {
     initSync();
   }, []);
+
+  function shiftDay(days: number) {
+    const d = new Date(selectedDate + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    setSelectedDate(d.toISOString().slice(0, 10));
+  }
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -36,12 +43,12 @@ export default function LogPage() {
   }, []);
 
   async function refresh() {
-    setMeals(await listMeals(today));
+    setMeals(await listMeals(selectedDate));
   }
 
   useEffect(() => {
     refresh();
-  }, [today]);
+  }, [selectedDate]);
 
   const totals = useMemo(() => {
     return meals.reduce(
@@ -58,12 +65,15 @@ export default function LogPage() {
   return (
     <AppShell activeTab="log">
       <div className="flex items-center justify-between border-2 border-outline-variant bg-surface-container p-2">
-        <button className="pixel-btn-secondary flex h-8 w-8 items-center justify-center p-1" disabled>
+        <button
+          className="pixel-btn-secondary flex h-8 w-8 items-center justify-center p-1"
+          onClick={() => shiftDay(-1)}
+        >
           <span className="material-symbols-outlined text-base">chevron_left</span>
         </button>
-        <div className="flex flex-col items-center">
+        <button className="flex flex-col items-center" onClick={() => setSelectedDate(today)}>
           <span className="font-mono text-xs font-semibold text-on-surface-variant">
-            {new Date(today + "T00:00:00").toLocaleDateString("en-US", {
+            {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
@@ -71,10 +81,13 @@ export default function LogPage() {
           </span>
           <span className="flex items-center gap-2 font-mono text-xl font-bold text-primary">
             <span className="material-symbols-outlined text-xl">calendar_month</span>
-            TODAY
+            {selectedDate === today ? "TODAY" : "DAY"}
           </span>
-        </div>
-        <button className="pixel-btn-secondary flex h-8 w-8 items-center justify-center p-1" disabled>
+        </button>
+        <button
+          className="pixel-btn-secondary flex h-8 w-8 items-center justify-center p-1"
+          onClick={() => shiftDay(1)}
+        >
           <span className="material-symbols-outlined text-base">chevron_right</span>
         </button>
       </div>
@@ -152,6 +165,12 @@ export default function LogPage() {
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-base text-on-surface">{e.calories}</span>
                       <button
+                        className="text-on-surface-variant transition-colors hover:text-primary"
+                        onClick={() => setModal({ mealType: e.meal_type, editing: e })}
+                      >
+                        <span className="material-symbols-outlined text-lg">edit</span>
+                      </button>
+                      <button
                         className="text-on-error transition-colors hover:text-error"
                         onClick={async () => {
                           await deleteMeal(e.client_id);
@@ -171,7 +190,7 @@ export default function LogPage() {
               </div>
               <button
                 className="pixel-btn mt-2 w-full"
-                onClick={() => setModalMealType(type)}
+                onClick={() => setModal({ mealType: type })}
               >
                 <span className="material-symbols-outlined text-base">add</span>
                 Add Entry
@@ -181,11 +200,13 @@ export default function LogPage() {
         })}
       </div>
 
-      {modalMealType && (
+      {modal && (
         <AddEntryModal
           open
-          mealType={modalMealType}
-          onClose={() => setModalMealType(null)}
+          date={selectedDate}
+          mealType={modal.mealType}
+          editing={modal.editing}
+          onClose={() => setModal(null)}
           onSaved={refresh}
         />
       )}

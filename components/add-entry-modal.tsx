@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { addMeal } from "@/db/db";
+import { useEffect, useState } from "react";
+import { addMeal, updateMeal, type Meal } from "@/db/db";
 
 export default function AddEntryModal({
   open,
-  onClose,
+  date,
   mealType,
+  editing,
+  onClose,
   onSaved,
 }: {
   open: boolean;
+  date: string;
   mealType: "breakfast" | "lunch" | "dinner" | "snack";
+  editing?: Meal | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -20,24 +24,42 @@ export default function AddEntryModal({
   const [carbsG, setCarbsG] = useState("");
   const [fatG, setFatG] = useState("");
 
+  useEffect(() => {
+    if (editing) {
+      setName(editing.name);
+      setCalories(String(editing.calories));
+      setProteinG(String(editing.protein_g));
+      setCarbsG(String(editing.carbs_g));
+      setFatG(String(editing.fat_g));
+    } else {
+      setName("");
+      setCalories("");
+      setProteinG("");
+      setCarbsG("");
+      setFatG("");
+    }
+  }, [editing, open]);
+
   if (!open) return null;
 
   async function handleSave() {
     if (!name || !calories) return;
-    await addMeal({
-      logged_date: new Date().toISOString().slice(0, 10),
-      meal_type: mealType,
+    const input = {
       name,
       calories: Number(calories),
       protein_g: Number(proteinG) || 0,
       carbs_g: Number(carbsG) || 0,
       fat_g: Number(fatG) || 0,
-    });
-    setName("");
-    setCalories("");
-    setProteinG("");
-    setCarbsG("");
-    setFatG("");
+    };
+    if (editing) {
+      await updateMeal(editing.client_id, input);
+    } else {
+      await addMeal({
+        logged_date: date,
+        meal_type: mealType,
+        ...input,
+      });
+    }
     onSaved();
     onClose();
   }
@@ -46,7 +68,7 @@ export default function AddEntryModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="snes-window flex w-full max-w-sm flex-col gap-4 p-6">
         <h2 className="font-headline text-lg font-bold uppercase tracking-widest text-primary">
-          Add Entry — {mealType}
+          {editing ? "Edit Entry" : "Add Entry"} — {mealType}
         </h2>
         <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
           Name

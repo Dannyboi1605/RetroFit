@@ -29,7 +29,7 @@ export type WeightLog = {
 class RetroFitDB extends Dexie {
   meals!: Table<Meal, string>;
   weightLogs!: Table<WeightLog, string>;
-  syncQueue!: Table<{ client_id: string; table: "meals" | "weightLogs"; op: "insert" | "delete"; created_at: string }, string>;
+  syncQueue!: Table<{ client_id: string; table: "meals" | "weightLogs"; op: "insert" | "delete" | "update"; created_at: string }, string>;
 
   constructor() {
     super("retrofit");
@@ -72,6 +72,18 @@ export async function addMeal(input: {
     await db.syncQueue.add({ client_id, table: "meals", op: "insert", created_at: now });
   });
   return client_id;
+}
+
+export async function updateMeal(clientId: string, patch: Partial<Meal>): Promise<void> {
+  await db.transaction("rw", [db.meals, db.syncQueue], async () => {
+    const row = await db.meals.get(clientId);
+    if (!row || row.deleted === 1) return;
+    const now = new Date().toISOString();
+    await db.meals.update(clientId, { ...patch, created_at: row.created_at });
+    if (row.synced === 1) {
+      await db.syncQueue.add({ client_id: clientId, table: "meals", op: "update", created_at: now });
+    }
+  });
 }
 
 export async function deleteMeal(clientId: string): Promise<void> {
