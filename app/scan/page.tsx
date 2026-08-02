@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import ScanCamera from "@/components/scan-camera";
 import AddEntryModal from "@/components/add-entry-modal";
 import { addMeal } from "@/db/db";
-import { analyzeScan } from "./actions";
+import { analyzeScan, lookupBarcodeScan } from "./actions";
 import { todayStr } from "@/lib/date";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
@@ -29,6 +29,66 @@ export default function ScanPage() {
   } | null>(null);
   const [saved, setSaved] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
+
+  useEffect(() => {
+    if (mode !== "barcode" || result) return;
+    let stopped = false;
+    (async () => {
+      const { Html5Qrcode } = await import("html5-qrcode");
+      if (stopped) return;
+      const scanner = new Html5Qrcode("barcode-container");
+      scannerRef.current = scanner;
+      setScanning(true);
+      setError(null);
+      await scanner
+        .start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async (decodedText) => {
+            await scanner.stop();
+            scannerRef.current = null;
+            setScanning(false);
+            const res = await lookupBarcodeScan(decodedText);
+            if ("error" in res) {
+              setResult({
+                name: "",
+                calories: "",
+                proteinG: "",
+                carbsG: "",
+                fatG: "",
+                servingSize: "Barcode: " + decodedText,
+                mealType: "snack",
+                source: "barcode",
+                barcode: decodedText,
+              });
+            } else {
+              setResult({
+                name: res.name,
+                calories: res.calories ? String(res.calories) : "",
+                proteinG: res.protein_g ? String(res.protein_g) : "",
+                carbsG: res.carbs_g ? String(res.carbs_g) : "",
+                fatG: res.fat_g ? String(res.fat_g) : "",
+                servingSize: res.serving_size ?? "per 100g",
+                mealType: "snack",
+                source: "barcode",
+                barcode: res.barcode,
+              });
+            }
+          },
+          () => {}
+        )
+        .catch(() => {
+          if (!stopped) setError("Camera unavailable — enter the barcode manually instead.");
+        });
+    })();
+    return () => {
+      stopped = true;
+      scannerRef.current?.stop();
+      scannerRef.current = null;
+    };
+  }, [mode, result]);
 
   async function handleCapture(dataUrl: string) {
     setAnalyzing(true);
@@ -119,12 +179,16 @@ export default function ScanPage() {
           </button>
         </div>
       )}
-
-      {mode === "ai" && result && (
+      {result && (
         <div className="snes-window flex flex-col gap-4 p-4">
           <h2 className="border-b-2 border-surface-variant pb-2 font-headline text-lg font-bold uppercase tracking-widest text-tertiary">
             Review &amp; Confirm
           </h2>
+          {result.barcode && (
+            <div className="border border-outline-variant bg-surface-container-low p-2 font-mono text-xs uppercase text-on-surface-variant">
+              Barcode: {result.barcode}
+            </div>
+          )}
           {result.servingSize && (
             <div className="font-mono text-[11px] uppercase text-on-surface-variant">
               Detected: {result.servingSize}
@@ -200,14 +264,58 @@ export default function ScanPage() {
         </div>
       )}
 
-      {mode === "barcode" && (
+      {mode === "barcode" && !result && (
         <div className="snes-window flex flex-col gap-4 p-4">
           <h2 className="border-b-2 border-surface-variant pb-2 font-headline text-lg font-bold uppercase tracking-widest text-tertiary">
             Scan Barcode
           </h2>
-          <div className="py-8 text-center font-mono text-xs font-semibold uppercase text-on-surface-variant">
-            Camera scanner coming up...
+          <div className="relative aspect-square w-full overflow-hidden border-2 border-outline-variant bg-surface-container">
+            <div id="barcode-container" className="h-full w-full" />
+            {scanning && (
+              <div className="pointer-events-none absolute inset-0">
+                <div className="scanline-anim pointer-events-none absolute inset-x-0 top-0 h-1 bg-primary/60" />
+                <div className="absolute inset-0 flex items-end justify-center pb-3 font-mono text-[10px] font-semibold uppercase text-on-surface-variant">
+                  Point at the barcode
+                </div>
+              </div>
+            )}
           </div>
+          {error && (
+            <div className="border-2 border-error bg-error/10 p-3 font-mono text-xs font-semibold text-error">
+              {error}
+            </div>
+          )}
+          <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
+            Or type the code
+            <div className="flex gap-2">
+              <input
+                id="manual-barcode"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className="w-full border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                placeholder="e.g. 5449000000996"
+                onKeyDown={async (e) => {
+                  if (e.key !== "Enter") return;
+                  const code = (e.target as HTMLInputElement).value.trim();
+                  if (!code) return;
+                  const res = await lookupBarcodeScan(code);
+                  if ("error" in res) setError(res.error);
+                  else
+                    setResult({
+                      name: res.name,
+                      calories: res.calories ? String(res.calories) : "",
+                      proteinG: res.protein_g ? String(res.protein_g) : "",
+                      carbsG: res.carbs_g ? String(res.carbs_g) : "",
+                      fatG: res.fat_g ? String(res.fat_g) : "",
+                      servingSize: res.serving_size ?? "per 100g",
+                      mealType: "snack",
+                      source: "barcode",
+                      barcode: res.barcode,
+                    });
+                }}
+              />
+            </div>
+          </label>
         </div>
       )}
 
