@@ -304,7 +304,18 @@ export default function ScanPage() {
                   const code = (e.target as HTMLInputElement).value.trim();
                   if (!code) return;
                   const res = await lookupBarcodeScan(code);
-                  if ("error" in res) setError(res.error);
+                  if ("error" in res)
+                    setResult({
+                      name: "",
+                      calories: "",
+                      proteinG: "",
+                      carbsG: "",
+                      fatG: "",
+                      servingSize: "Not found — fill in the details",
+                      mealType: "snack",
+                      source: "barcode",
+                      barcode: code,
+                    });
                   else
                     setResult({
                       name: res.name,
