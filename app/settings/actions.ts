@@ -7,6 +7,7 @@ import { caloriesFromMacros } from "@/lib/tdee";
 
 export type SettingsState = {
   error?: string;
+  success?: boolean;
 };
 
 export async function updateTargets(
@@ -45,5 +46,5 @@ export async function updateTargets(
 
   revalidatePath("/");
   revalidatePath("/settings");
-  redirect("/settings");
+  return { success: true };
 }

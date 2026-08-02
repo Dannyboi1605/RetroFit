@@ -83,7 +83,8 @@ export async function updateMeal(clientId: string, patch: Partial<Meal>): Promis
     const now = new Date().toISOString();
     await db.meals.update(clientId, { ...patch, created_at: row.created_at });
     if (row.synced === 1) {
-      await db.syncQueue.add({ client_id: clientId, table: "meals", op: "update", created_at: now });
+      // ponytail: put not add — queue holds one op per client_id, latest op wins
+      await db.syncQueue.put({ client_id: clientId, table: "meals", op: "update", created_at: now });
     }
   });
 }
@@ -91,7 +92,7 @@ export async function updateMeal(clientId: string, patch: Partial<Meal>): Promis
 export async function deleteMeal(clientId: string): Promise<void> {
   await db.transaction("rw", [db.meals, db.syncQueue], async () => {
     await db.meals.update(clientId, { deleted: 1 });
-    await db.syncQueue.add({
+    await db.syncQueue.put({
       client_id: clientId,
       table: "meals",
       op: "delete",

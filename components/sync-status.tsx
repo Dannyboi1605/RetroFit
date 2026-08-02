@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { db } from "@/db/db";
 import { initSync, pushPending } from "@/lib/sync";
+import SaveToast from "@/components/save-toast";
 
 export default function SyncStatus() {
   const [pending, setPending] = useState(0);
   const [online, setOnline] = useState(true);
   const [pushing, setPushing] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
 
   useEffect(() => {
     initSync();
@@ -56,14 +58,20 @@ export default function SyncStatus() {
         disabled={pushing || pending === 0}
         onClick={async () => {
           setPushing(true);
-          await pushPending();
-          setPushing(false);
+          try {
+            await pushPending();
+            setFlash("Synced!");
+          } finally {
+            setPushing(false);
+          }
           setPending(await db.syncQueue.count());
         }}
       >
         <span className="material-symbols-outlined text-base">cloud_upload</span>
         {pushing ? "Pushing..." : "Push Now"}
       </button>
+
+      {flash && <SaveToast key={flash} message={flash} onDone={() => setFlash(null)} />}
     </div>
   );
 }

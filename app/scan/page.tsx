@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import ScanCamera, { fileToDataUrl } from "@/components/scan-camera";
 import AddEntryModal from "@/components/add-entry-modal";
+import SaveToast from "@/components/save-toast";
 import { addMeal } from "@/db/db";
 import { analyzeScan, lookupBarcodeScan } from "./actions";
 import { todayStr } from "@/lib/date";
@@ -12,7 +12,6 @@ import { todayStr } from "@/lib/date";
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
 export default function ScanPage() {
-  const router = useRouter();
   const [mode, setMode] = useState<"ai" | "barcode">("ai");
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +26,7 @@ export default function ScanPage() {
     source: "ai_scan" | "barcode";
     barcode?: string;
   } | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
@@ -100,7 +99,7 @@ export default function ScanPage() {
   async function handleCapture(dataUrl: string) {
     setAnalyzing(true);
     setError(null);
-    setSaved(false);
+    setFlash(null);
     const res = await analyzeScan(dataUrl);
     setAnalyzing(false);
     if ("error" in res) {
@@ -140,7 +139,7 @@ export default function ScanPage() {
       fat_g: Number(result.fatG) || 0,
       source: result.source,
     });
-    setSaved(true);
+    setFlash("Meal logged!");
     setResult(null);
   }
 
@@ -330,11 +329,7 @@ export default function ScanPage() {
         </div>
       )}
 
-      {saved && (
-        <div className="border-2 border-tertiary bg-tertiary/10 p-3 font-mono text-xs font-semibold uppercase text-tertiary">
-          Meal logged!
-        </div>
-      )}
+      {flash && <SaveToast key={flash} message={flash} onDone={() => setFlash(null)} />}
 
       {mode === "barcode" && !result && (
         <div className="snes-window flex flex-col gap-4 p-4">
@@ -391,7 +386,7 @@ export default function ScanPage() {
           date={todayStr()}
           mealType="snack"
           onClose={() => setManualOpen(false)}
-          onSaved={() => router.push("/log")}
+          onSaved={() => setFlash("Meal logged!")}
         />
       )}
     </AppShell>

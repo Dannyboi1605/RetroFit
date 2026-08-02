@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app-shell";
 import AddEntryModal from "@/components/add-entry-modal";
+import SaveToast from "@/components/save-toast";
 import { deleteMeal, listMeals, type Meal } from "@/db/db";
 import { shiftDate, todayStr } from "@/lib/date";
 import { supabase } from "@/lib/supabase/client";
@@ -31,6 +32,7 @@ export default function LogPage() {
   const [targets, setTargets] = useState<Targets | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [modal, setModal] = useState<{ mealType: (typeof MEAL_TYPES)[number]; editing?: Meal } | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
 
   useEffect(() => {
     initSync();
@@ -147,7 +149,9 @@ export default function LogPage() {
             <div className="font-headline text-2xl font-extrabold text-primary">
               {totals.calories.toLocaleString()}{" "}
               {targets ? (
-                <span className="font-sans text-sm text-on-surface-variant">/ target</span>
+                <span className="font-sans text-sm text-on-surface-variant">
+                  / {targets.calories.toLocaleString()}
+                </span>
               ) : (
                 <span className="font-mono text-xs font-bold text-error">
                   OFFLINE — target unavailable
@@ -281,8 +285,15 @@ export default function LogPage() {
           mealType={modal.mealType}
           editing={modal.editing}
           onClose={() => setModal(null)}
-          onSaved={refresh}
+          onSaved={() => {
+            refresh();
+            setFlash(modal.editing ? "Entry updated!" : "Meal logged!");
+          }}
         />
+      )}
+
+      {flash && (
+        <SaveToast key={flash} message={flash} onDone={() => setFlash(null)} />
       )}
     </AppShell>
   );

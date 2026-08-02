@@ -185,7 +185,7 @@ export default function HomeDashboard({ profile }: { profile: Profile }) {
               <polyline
                 fill="none"
                 points={weightChart.points}
-                stroke="var(--color-tertiary)"
+                stroke="var(--color-tertiary-container)"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth="3"
@@ -194,7 +194,7 @@ export default function HomeDashboard({ profile }: { profile: Profile }) {
                 cx="100"
                 cy={Number(weightChart.points.split(" ").at(-1)?.split(",")[1])}
                 r="4"
-                fill="var(--color-tertiary)"
+                fill="var(--color-tertiary-container)"
               />
             </svg>
           ) : (

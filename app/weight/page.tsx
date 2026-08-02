@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app-shell";
+import SaveToast from "@/components/save-toast";
 import { addWeight, listWeightLogs, type WeightLog } from "@/db/db";
 import { initSync } from "@/lib/sync";
 import { dateStr, todayStr } from "@/lib/date";
@@ -18,8 +19,7 @@ export default function WeightPage() {
   const [date, setDate] = useState(todayStr());
   const [weight, setWeight] = useState("");
   const [note, setNote] = useState("");
-  const [saved, setSaved] = useState(false);
-  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
 
   const kg = Number(weight);
   const weightInvalid = !kg || kg < 30 || kg > 300;
@@ -68,9 +68,7 @@ export default function WeightPage() {
     await addWeight({ logged_date: date, weight_kg: kg, note: note || undefined });
     setWeight("");
     setNote("");
-    setSaved(true);
-    if (savedTimer.current) clearTimeout(savedTimer.current);
-    savedTimer.current = setTimeout(() => setSaved(false), 2500);
+    setFlash("Weight saved!");
     refresh();
   }
 
@@ -123,7 +121,7 @@ export default function WeightPage() {
                 <polyline
                   fill="none"
                   points={chart.points}
-                  stroke="var(--color-tertiary)"
+                  stroke="var(--color-tertiary-container)"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="3"
@@ -132,7 +130,7 @@ export default function WeightPage() {
                   cx="100"
                   cy={Number(chart.points.split(" ").at(-1)?.split(",")[1])}
                   r="4"
-                  fill="var(--color-tertiary)"
+                  fill="var(--color-tertiary-container)"
                 />
               </svg>
               <div className="absolute left-2 top-1 font-mono text-[10px] text-on-surface-variant">
@@ -210,12 +208,9 @@ export default function WeightPage() {
           <span className="material-symbols-outlined text-base">monitor_weight</span>
           Save Weight
         </button>
-        {saved && (
-          <div role="alert" className="font-mono text-xs font-semibold uppercase text-tertiary">
-            Saved
-          </div>
-        )}
       </div>
+
+      {flash && <SaveToast key={flash} message={flash} onDone={() => setFlash(null)} />}
 
       <div className="snes-window flex flex-col gap-3 p-4">
         <h2 className="border-b-2 border-surface-variant pb-2 font-headline text-lg font-bold uppercase tracking-widest text-primary">

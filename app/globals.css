@@ -177,6 +177,16 @@ body {
   outline-offset: 2px;
 }
 
+/* ponytail: 16px on touch inputs kills mobile auto-zoom; !important beats
+   the text-sm utilities on every form field without editing them all */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scanline-anim {
     animation: none;
