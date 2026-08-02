@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app-shell";
-import ScanCamera from "@/components/scan-camera";
+import ScanCamera, { fileToDataUrl } from "@/components/scan-camera";
 import AddEntryModal from "@/components/add-entry-modal";
 import { addMeal } from "@/db/db";
 import { analyzeScan, lookupBarcodeScan } from "./actions";
@@ -117,6 +117,11 @@ export default function ScanPage() {
     });
   }
 
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    await handleCapture(await fileToDataUrl(file));
+  }
+
   async function handleSave() {
     if (!result || !result.name || !result.calories) return;
     await addMeal({
@@ -173,6 +178,16 @@ export default function ScanPage() {
           ) : (
             <ScanCamera onCapture={handleCapture} onError={setError} />
           )}
+          <label className="pixel-btn-secondary w-full cursor-pointer">
+            <span className="material-symbols-outlined text-base">photo_library</span>
+            Upload Photo
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0])}
+            />
+          </label>
           {error && (
             <div className="border-2 border-error bg-error/10 p-3 font-mono text-xs font-semibold text-error">
               {error}
