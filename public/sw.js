@@ -24,15 +24,15 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const { request } = e;
-  if (request.method !== "GET" || !request.url.startsWith(self.location.origin)) return;
+  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
     e.respondWith(
       fetch(request)
         .then((res) => {
+          if (!res.ok) return res;
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
-          return res;
+          return caches.open(CACHE).then((c) => c.put(request, copy)).then(() => res);
         })
         .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
     );
