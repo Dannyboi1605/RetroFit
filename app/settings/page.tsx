@@ -3,6 +3,9 @@ import { supabaseServer } from "@/lib/supabase/server";
 import AppShell from "@/components/app-shell";
 import SyncStatus from "@/components/sync-status";
 import TargetsForm from "@/components/targets-form";
+import GoalPicker from "@/components/goal-picker";
+import { logout } from "./actions";
+import type { Goal } from "@/lib/tdee";
 export default async function SettingsPage() {
   const supabase = await supabaseServer();
   const {
@@ -13,7 +16,9 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, goal")
+    .select(
+      "daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, goal"
+    )
     .eq("id", user.id)
     .single();
 
@@ -27,9 +32,17 @@ export default async function SettingsPage() {
         </h1>
       </div>
 
+      <GoalPicker goal={profile.goal as Goal} />
+
       <TargetsForm profile={profile} />
 
       <SyncStatus />
+
+      <form action={logout}>
+        <button type="submit" className="pixel-btn w-full bg-error text-on-error">
+          Log Out
+        </button>
+      </form>
     </AppShell>
   );
 }

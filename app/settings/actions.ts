@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
-import { caloriesFromMacros } from "@/lib/tdee";
+import { caloriesFromMacros, calculateTargets, type Goal } from "@/lib/tdee";
 
 export type SettingsState = {
   error?: string;
@@ -47,4 +47,64 @@ export async function updateTargets(
   revalidatePath("/");
   revalidatePath("/settings");
   return { success: true };
+}
+
+export async function logout() {
+  const supabase = await supabaseServer();
+  await supabase.auth.signOut();
+  redirect("/login");
+}
+
+export async function updateGoal(goal: string): Promise<{ error?: string }> {
+  if (!["cut", "maintain", "bulk"].includes(goal))
+    return { error: "Pick a goal." };
+
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not signed in." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("age, gender, height_cm, current_weight_kg, activity_level")
+    .eq("id", user.id)
+    .single();
+
+  if (
+    !profile ||
+    profile.age == null ||
+    !profile.gender ||
+    profile.height_cm == null ||
+    profile.current_weight_kg == null ||
+    !profile.activity_level
+  )
+    return { error: "Onboarding data missing — redo the quest first." };
+
+  const targets = calculateTargets({
+    age: profile.age,
+    gender: profile.gender,
+    heightCm: Number(profile.height_cm),
+    weightKg: Number(profile.current_weight_kg),
+    activityLevel: profile.activity_level,
+    goal: goal as Goal,
+  });
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      goal,
+      daily_calorie_target: targets.dailyCalories,
+      protein_target_g: targets.proteinG,
+      carbs_target_g: targets.carbsG,
+      fat_target_g: targets.fatG,
+    })
+    .eq("id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/settings");
+  return {};
 }

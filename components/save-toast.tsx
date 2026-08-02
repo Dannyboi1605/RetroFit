@@ -19,7 +19,7 @@ export default function SaveToast({
       role="status"
       className="pointer-events-none fixed left-1/2 top-20 z-[60] w-full max-w-app -translate-x-1/2 px-4"
     >
-      <div className="border-2 border-tertiary bg-tertiary/10 px-4 py-3 text-center font-mono text-xs font-bold uppercase tracking-wider text-tertiary">
+      <div className="border-2 border-tertiary bg-surface-container-lowest/70 px-4 py-3 text-center font-mono text-xs font-bold uppercase tracking-wider text-tertiary backdrop-blur-md">
         {message}
       </div>
     </div>

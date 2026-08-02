@@ -8,6 +8,7 @@ import {
   calculateTargets,
   caloriesFromMacros,
   type ActivityLevel,
+  type Goal,
 } from "@/lib/tdee";
 
 const STEPS = [
@@ -81,6 +82,24 @@ export default function QuestWizard() {
       setFatG(String(targets.fatG));
     }
     setStep((s) => s + 1);
+  }
+
+  function pickGoal(g: string) {
+    if (g === goal) return;
+    setGoal(g);
+    if (targets) {
+      const t = calculateTargets({
+        age: Number(age),
+        gender: gender as "male" | "female",
+        heightCm: Number(heightCm),
+        weightKg: Number(weightKg),
+        activityLevel: activityLevel as ActivityLevel,
+        goal: g as Goal,
+      });
+      setProteinG(String(t.proteinG));
+      setCarbsG(String(t.carbsG));
+      setFatG(String(t.fatG));
+    }
   }
 
   return (
@@ -256,7 +275,7 @@ export default function QuestWizard() {
                 type="button"
                 key={g.id}
                 aria-pressed={goal === g.id}
-                onClick={() => setGoal(g.id)}
+                onClick={() => pickGoal(g.id)}
                 style={goal === g.id ? { borderColor: "var(--color-primary)" } : undefined}
                 className={`snes-window flex items-center justify-between p-3 text-left ${goal === g.id ? "" : "opacity-60"}`}
               >
@@ -269,7 +288,7 @@ export default function QuestWizard() {
               </button>
             ))}
             <p className="mt-2 text-center font-mono text-[10px] text-on-surface-variant">
-              FOR WEIGHT-TREND GUIDANCE — DOES NOT CHANGE YOUR MACROS
+              FOR WEIGHT-TREND GUIDANCE — RECALCULATES YOUR MACROS
             </p>
           </div>
         )}

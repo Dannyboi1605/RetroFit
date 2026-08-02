@@ -26,7 +26,7 @@ export default async function QuestPage() {
         </h1>
       </div>
       <p className="text-center font-mono text-xs text-on-surface-variant">
-        4-STEP QUEST: CALCULATE YOUR DAILY TARGETS
+        5-STEP QUEST: CALCULATE YOUR DAILY TARGETS
       </p>
       <QuestWizard />
     </main>

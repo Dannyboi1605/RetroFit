@@ -38,8 +38,9 @@ export function calculateTargets(input: {
 
   const proteinG = Math.round(2 * input.weightKg);
   const remaining = dailyCalories - proteinG * 4;
-  const carbsG = Math.round((remaining * 0.4) / 4);
-  const fatG = Math.round((remaining * 0.25) / 9);
+  // ponytail: carbs/fat share 40/25 of remaining, scaled to 100% so totals match dailyCalories
+  const carbsG = Math.round(((remaining * 0.4) / 4) / 0.65);
+  const fatG = Math.round(((remaining * 0.25) / 9) / 0.65);
 
   return { bmr: Math.round(bmr), tdee: Math.round(tdee), dailyCalories, proteinG, carbsG, fatG };
 }
