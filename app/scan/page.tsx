@@ -263,7 +263,7 @@ export default function ScanPage() {
         </div>
       )}
 
-      {mode === "ai" && saved && (
+      {saved && (
         <div className="border-2 border-tertiary bg-tertiary/10 p-3 font-mono text-xs font-semibold uppercase text-tertiary">
           Meal logged!
         </div>
