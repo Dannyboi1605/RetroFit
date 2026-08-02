@@ -53,6 +53,7 @@ CREATE TABLE public.weight_logs (
   logged_date DATE NOT NULL DEFAULT CURRENT_DATE,
   weight_kg NUMERIC(5,2) NOT NULL CHECK (weight_kg BETWEEN 30 AND 300),
   note TEXT,
+  client_id UUID UNIQUE,
   UNIQUE (user_id, logged_date)
 );
 
