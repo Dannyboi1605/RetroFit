@@ -83,7 +83,7 @@ export function sumTotals(items: MealItem[]): MealAnalysisResult["total"] {
   };
 }
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 function parseResult(raw: string): MealAnalysisResult {
   if (!raw) throw new AIError("AI returned no result");
