@@ -6,6 +6,7 @@ import SaveToast from "@/components/save-toast";
 import { addWeight, listWeightLogs, type WeightLog } from "@/db/db";
 import { initSync } from "@/lib/sync";
 import { dateStr, todayStr } from "@/lib/date";
+import { useElementSize } from "@/lib/use-element-size";
 
 const RANGES = [
   { id: "1W", days: 7 },
@@ -20,6 +21,7 @@ export default function WeightPage() {
   const [weight, setWeight] = useState("");
   const [note, setNote] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
+  const { ref: chartBoxRef, size } = useElementSize<HTMLDivElement>();
 
   const kg = Number(weight);
   const weightInvalid = !kg || kg < 30 || kg > 300;
@@ -46,7 +48,9 @@ export default function WeightPage() {
   }, [logs, range]);
 
   const chart = useMemo(() => {
-    if (filtered.length < 2) return null;
+    if (!size || filtered.length < 2) return null;
+    const cw = size.w - 20; // chart area: container minus p-2 + border-2
+    const ch = size.h - 20;
     const weights = filtered.map((w) => w.weight_kg);
     const min = Math.min(...weights);
     const max = Math.max(...weights);
@@ -55,13 +59,13 @@ export default function WeightPage() {
     const hi = max + pad;
     const points = filtered
       .map((w, i) => {
-        const x = (i / (filtered.length - 1)) * 100;
-        const y = 90 - ((w.weight_kg - lo) / (hi - lo)) * 80;
+        const x = (i / (filtered.length - 1)) * cw;
+        const y = ch * (0.9 - ((w.weight_kg - lo) / (hi - lo)) * 0.8);
         return `${x},${y}`;
       })
       .join(" ");
-    return { points, lo, hi, last: filtered[filtered.length - 1], delta: filtered[filtered.length - 1].weight_kg - filtered[0].weight_kg };
-  }, [filtered]);
+    return { points, lo, hi, last: filtered[filtered.length - 1], delta: filtered[filtered.length - 1].weight_kg - filtered[0].weight_kg, cw, ch };
+  }, [filtered, size]);
 
   async function handleSave() {
     if (weightInvalid) return;
@@ -107,7 +111,7 @@ export default function WeightPage() {
           </div>
         </div>
 
-        <div className="relative flex h-40 w-full items-end overflow-hidden border-2 border-outline-variant bg-surface-container-low p-2">
+        <div ref={chartBoxRef} className="relative flex h-40 w-full items-end overflow-hidden border-2 border-outline-variant bg-surface-container-low p-2">
           <div
             className="pointer-events-none absolute inset-0 opacity-20"
             style={{
@@ -118,19 +122,23 @@ export default function WeightPage() {
           />
           {chart ? (
             <>
-              <svg className="relative z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <svg
+                className="relative z-10 h-full w-full"
+                viewBox={`0 0 ${chart.cw} ${chart.ch}`}
+                preserveAspectRatio="none"
+              >
                 <polyline
                   fill="none"
                   points={chart.points}
                   stroke="var(--color-tertiary-container)"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth="3"
+                  strokeWidth={Math.round(chart.ch * 0.03)}
                 />
                 <circle
-                  cx="100"
+                  cx={chart.cw}
                   cy={Number(chart.points.split(" ").at(-1)?.split(",")[1])}
-                  r="4"
+                  r={Math.round(chart.ch * 0.04)}
                   fill="var(--color-tertiary-container)"
                 />
               </svg>

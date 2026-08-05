@@ -130,12 +130,28 @@ body {
 }
 
 .pixel-btn-danger {
+  font-family: var(--font-jetbrains), monospace;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   background-color: #c5020b;
   color: #ffdad6;
   border-top: 2px solid #ffb4ab;
   border-left: 2px solid #ffb4ab;
   border-right: 2px solid #690005;
   border-bottom: 4px solid #690005;
+}
+
+.pixel-btn-danger:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
 }
 
 .macro-bar-bg {

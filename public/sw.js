@@ -1,7 +1,7 @@
 // ponytail: hand-rolled SW; next-pwa not worth a dependency for 50 lines.
 // ponytail: cache-first for static, network-first for pages; upgrade path:
 // precache hashes / route handlers if offline needs to go deeper.
-const CACHE = "retrofit-shell-v2";
+const CACHE = "retrofit-shell-v3";
 const PRECACHE = ["/", "/log", "/scan", "/weight", "/settings", "/manifest.webmanifest", "/RF logo.png", "/fonts/material-symbols.woff2"];
 
 self.addEventListener("install", (e) => {
@@ -24,7 +24,8 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const { request } = e;
-  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
     e.respondWith(
@@ -38,6 +39,10 @@ self.addEventListener("fetch", (e) => {
     );
     return;
   }
+
+  // ponytail: never cache Next.js build artifacts or RSC payloads; cache-first
+  // on them serves stale chunks after a rebuild -> hydration mismatch.
+  if (url.pathname.startsWith("/_next/") || url.searchParams.has("_rsc")) return;
 
   e.respondWith(
     caches.match(request).then(

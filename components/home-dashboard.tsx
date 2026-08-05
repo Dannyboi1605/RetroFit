@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import { listMeals, listWeightLogs, type Meal, type WeightLog } from "@/db/db";
 import { todayStr } from "@/lib/date";
+import { useElementSize } from "@/lib/use-element-size";
 
 type Profile = {
   daily_calorie_target: number;
@@ -32,6 +33,7 @@ export default function HomeDashboard({ profile }: { profile: Profile }) {
   const today = todayStr();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [weights, setWeights] = useState<WeightLog[]>([]);
+  const { ref: chartBoxRef, size } = useElementSize<HTMLDivElement>();
 
   useEffect(() => {
     (async () => {
@@ -61,23 +63,25 @@ export default function HomeDashboard({ profile }: { profile: Profile }) {
   ];
 
   const weightChart = useMemo(() => {
-    if (weights.length < 2) return null;
-    const kgs = weights.map((w) => w.weight_kg);
+    if (!size || weights.length < 2) return null;
+    const cw = size.w - 20; // chart area: container minus p-2 + border-2
+    const ch = size.h - 20;
+    const kgs = weights.map((e) => e.weight_kg);
     const min = Math.min(...kgs);
     const max = Math.max(...kgs);
     const pad = Math.max(1, (max - min) * 0.15);
     const lo = min - pad;
     const hi = max + pad;
     const points = weights
-      .map((w, i) => {
-        const x = (i / (weights.length - 1)) * 100;
-        const y = 90 - ((w.weight_kg - lo) / (hi - lo)) * 80;
+      .map((e, i) => {
+        const x = (i / (weights.length - 1)) * cw;
+        const y = ch * (0.9 - ((e.weight_kg - lo) / (hi - lo)) * 0.8);
         return `${x},${y}`;
       })
       .join(" ");
     const delta = weights[weights.length - 1].weight_kg - weights[0].weight_kg;
-    return { points, delta };
-  }, [weights]);
+    return { points, delta, cw, ch };
+  }, [weights, size]);
 
   const recent = meals;
   const groupedByMeal = useMemo(() => {
@@ -182,7 +186,7 @@ return (
               {weightChart ? `${weightChart.delta > 0 ? "+" : ""}${weightChart.delta.toFixed(1)} kg` : "-- kg"}
             </span>
           </div>
-          <div className="relative flex h-32 w-full items-end overflow-hidden border-2 border-outline-variant bg-surface-container-low p-2">
+          <div ref={chartBoxRef} className="relative flex h-32 w-full items-end overflow-hidden border-2 border-outline-variant bg-surface-container-low p-2">
             <div
               className="pointer-events-none absolute inset-0 opacity-20"
               style={{
@@ -192,19 +196,23 @@ return (
               }}
             />
             {weightChart ? (
-              <svg className="relative z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <svg
+                className="relative z-10 h-full w-full"
+                viewBox={`0 0 ${weightChart.cw} ${weightChart.ch}`}
+                preserveAspectRatio="none"
+              >
                 <polyline
                   fill="none"
                   points={weightChart.points}
                   stroke="var(--color-tertiary-container)"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth="3"
+                  strokeWidth={Math.round(weightChart.ch * 0.03)}
                 />
                 <circle
-                  cx="100"
+                  cx={weightChart.cw}
                   cy={Number(weightChart.points.split(" ").at(-1)?.split(",")[1])}
-                  r="4"
+                  r={Math.round(weightChart.ch * 0.04)}
                   fill="var(--color-tertiary-container)"
                 />
               </svg>
