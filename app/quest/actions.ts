@@ -63,7 +63,8 @@ export async function saveQuest(
 
   if (error) return { error: error.message };
 
-  const next = String(formData.get("next") || "/");
+  const rawNext = String(formData.get("next") || "/");
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
 
   redirect(next);
 }
