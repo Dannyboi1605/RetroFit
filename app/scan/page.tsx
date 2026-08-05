@@ -268,7 +268,6 @@ export default function ScanPage() {
   function setCaloriesField(index: number, value: string) {
     setResult((r) => {
       if (!r) return r;
-      const item = r.items[index];
       return {
         ...r,
         items: r.items.map((it, j) =>
@@ -289,16 +288,17 @@ export default function ScanPage() {
     });
   }
 
-  function setAmount(index: number, value: number) {
+  function setAmount(index: number, value: string) {
     setResult((r) => {
-      if (!r) return r;
+      // empty input keeps the last valid amount — clearing must not nuke the macros
+      if (!r || value === "" || value === "-") return r;
       const item = r.items[index];
-      const d = toDisplayed(item.per100, item.unit, value, item.gPerServing);
+      const d = toDisplayed(item.per100, item.unit, Number(value), item.gPerServing);
       return {
         ...r,
         items: r.items.map((it, j) =>
           j === index
-            ? { ...it, amount: value, calories: String(d.calories), proteinG: String(d.proteinG), carbsG: String(d.carbsG), fatG: String(d.fatG) }
+            ? { ...it, amount: Number(value), calories: String(d.calories), proteinG: String(d.proteinG), carbsG: String(d.carbsG), fatG: String(d.fatG) }
             : it
         ),
       };
@@ -323,10 +323,11 @@ export default function ScanPage() {
     });
   }
 
-  function setGPerServing(index: number, gPerServing: number) {
+  function setGPerServing(index: number, value: string) {
     setResult((r) => {
-      if (!r) return r;
+      if (!r || value === "" || value === "-") return r;
       const item = r.items[index];
+      const gPerServing = Number(value);
       const next = { ...item, gPerServing };
       if (item.unit === "serving") {
         const d = toDisplayed(item.per100, item.unit, item.amount, gPerServing);
@@ -535,15 +536,15 @@ export default function ScanPage() {
               </div>
               <div className="flex flex-wrap items-end gap-2">
                 <div className="flex flex-col gap-1">
-                  <span className="font-mono text-[10px] uppercase text-on-surface-variant">Amount</span>
+                  <span className="font-mono text-[10px] uppercase text-on-surface-variant">Serving size</span>
                   <div className="flex items-stretch gap-1">
                     <input
                       type="number"
                       min={0}
                       step="any"
-                      aria-label={`Item ${i + 1} amount`}
+                      aria-label={`Item ${i + 1} serving size`}
                       value={item.amount}
-                      onChange={(e) => setAmount(i, Number(e.target.value) || 0)}
+                      onChange={(e) => setAmount(i, e.target.value)}
                       className="w-20 border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
                     />
                     <div className="flex border-2 border-outline-variant">
@@ -559,7 +560,7 @@ export default function ScanPage() {
                               : "bg-surface text-on-surface-variant opacity-60"
                           }`}
                         >
-                          {u}
+                          {u === "g" ? "grams" : "servings"}
                         </button>
                       ))}
                     </div>
@@ -567,20 +568,26 @@ export default function ScanPage() {
                 </div>
                 {item.unit === "serving" && (
                   <label className="flex flex-col gap-1 font-mono text-[10px] uppercase text-on-surface-variant">
-                    g / serving
-                    <input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={item.gPerServing}
-                      onChange={(e) => setGPerServing(i, Number(e.target.value) || 0)}
-                      className="w-24 border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
-                    />
+                    <span>1 serving =</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={item.gPerServing}
+                        onChange={(e) => setGPerServing(i, e.target.value)}
+                        className="w-20 border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                      />
+                      <span>g</span>
+                    </div>
                   </label>
                 )}
                 {item.portionLabel && (
                   <span className="ml-auto font-mono text-[11px] uppercase text-on-surface-variant">{item.portionLabel}</span>
                 )}
+              </div>
+              <div className="font-mono text-[10px] text-on-surface-variant">
+                Macros adjust automatically when you change the serving size
               </div>
               <div className="grid grid-cols-4 gap-2">
                 <label className="flex flex-col gap-1 font-mono text-[10px] uppercase text-on-surface-variant">

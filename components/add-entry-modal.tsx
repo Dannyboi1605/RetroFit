@@ -106,9 +106,12 @@ export default function AddEntryModal({
     );
   }
 
-  function onAmount(value: number) {
-    setAmountSel(value);
-    const d = toDisplayed(per100, unit, value, gPerServing);
+  function onAmount(value: string) {
+    // empty input keeps the last valid amount — clearing must not nuke the macros
+    if (value === "" || value === "-") return;
+    const n = Number(value);
+    setAmountSel(n);
+    const d = toDisplayed(per100, unit, n, gPerServing);
     setCalories(String(d.calories));
     setProteinG(String(d.proteinG));
     setCarbsG(String(d.carbsG));
@@ -127,10 +130,12 @@ export default function AddEntryModal({
     setFatG(String(d.fatG));
   }
 
-  function onGPerServing(v: number) {
-    setGPerServingSel(v);
+  function onGPerServing(value: string) {
+    if (value === "" || value === "-") return;
+    const n = Number(value);
+    setGPerServingSel(n);
     if (unit !== "serving") return;
-    const d = toDisplayed(per100, unit, amount, v);
+    const d = toDisplayed(per100, unit, amount, n);
     setCalories(String(d.calories));
     setProteinG(String(d.proteinG));
     setCarbsG(String(d.carbsG));
@@ -211,15 +216,15 @@ export default function AddEntryModal({
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-xs uppercase text-on-surface-variant">Amount</span>
+            <span className="font-mono text-xs uppercase text-on-surface-variant">Serving size</span>
             <div className="flex items-stretch gap-1">
               <input
                 type="number"
                 min={0}
                 step="any"
-                aria-label="Amount"
+                aria-label="Serving size"
                 value={amount}
-                onChange={(e) => onAmount(Number(e.target.value) || 0)}
+                onChange={(e) => onAmount(e.target.value)}
                 className="w-20 border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
               />
               <div className="flex border-2 border-outline-variant">
@@ -233,7 +238,7 @@ export default function AddEntryModal({
                       unit === u ? "bg-surface-container-high text-primary" : "bg-surface text-on-surface-variant opacity-60"
                     }`}
                   >
-                    {u}
+                    {u === "g" ? "grams" : "servings"}
                   </button>
                 ))}
               </div>
@@ -241,17 +246,23 @@ export default function AddEntryModal({
           </div>
           {unit === "serving" && (
             <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
-              g / serving
-              <input
-                type="number"
-                min={0}
-                step="any"
-                value={gPerServing}
-                onChange={(e) => onGPerServing(Number(e.target.value) || 0)}
-                className="w-24 border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
-              />
+              <span>1 serving =</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={gPerServing}
+                  onChange={(e) => onGPerServing(e.target.value)}
+                  className="w-20 border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                />
+                <span>g</span>
+              </div>
             </label>
           )}
+        </div>
+        <div className="font-mono text-xs text-on-surface-variant">
+          Macros adjust automatically when you change the serving size
         </div>
         <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
           Calories
