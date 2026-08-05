@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { addMeal, updateMeal, type Meal } from "@/db/db";
+import { toDisplayed, fromDisplayed, convertAmount, type Unit, type Per100 } from "@/lib/serving";
+import { caloriesFromMacros } from "@/lib/tdee";
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 const MEAL_ICONS: Record<(typeof MEAL_TYPES)[number], string> = {
@@ -35,6 +37,10 @@ export default function AddEntryModal({
   const [mealTypeSel, setMealTypeSel] = useState<(typeof MEAL_TYPES)[number]>(mealType);
   const [loggedDate, setLoggedDate] = useState(date);
   const [tried, setTried] = useState(false);
+  const [unit, setUnitSel] = useState<Unit>("g");
+  const [amount, setAmountSel] = useState(100);
+  const [gPerServing, setGPerServingSel] = useState(100);
+  const [per100, setPer100] = useState<Per100>({ calories: 0, proteinG: 0, carbsG: 0, fatG: 0 });
 
   useEffect(() => {
     if (editing) {
@@ -43,12 +49,27 @@ export default function AddEntryModal({
       setProteinG(String(editing.protein_g));
       setCarbsG(String(editing.carbs_g));
       setFatG(String(editing.fat_g));
+      setUnitSel("g");
+      setAmountSel(100);
+      setGPerServingSel(100);
+      setPer100(
+        fromDisplayed(
+          { calories: editing.calories, proteinG: editing.protein_g, carbsG: editing.carbs_g, fatG: editing.fat_g },
+          "g",
+          100,
+          100
+        )
+      );
     } else {
       setName("");
       setCalories("");
       setProteinG("");
       setCarbsG("");
       setFatG("");
+      setUnitSel("g");
+      setAmountSel(100);
+      setGPerServingSel(100);
+      setPer100({ calories: 0, proteinG: 0, carbsG: 0, fatG: 0 });
     }
     setMealTypeSel(mealType);
     setLoggedDate(date);
@@ -60,6 +81,61 @@ export default function AddEntryModal({
   }, [open]);
 
   if (!open) return null;
+
+  function onMacro(key: "proteinG" | "carbsG" | "fatG", value: string) {
+    if (key === "proteinG") setProteinG(value);
+    if (key === "carbsG") setCarbsG(value);
+    if (key === "fatG") setFatG(value);
+    const p = key === "proteinG" ? Number(value) || 0 : Number(proteinG) || 0;
+    const c = key === "carbsG" ? Number(value) || 0 : Number(carbsG) || 0;
+    const f = key === "fatG" ? Number(value) || 0 : Number(fatG) || 0;
+    const cal = p + c + f > 0 ? caloriesFromMacros(p, c, f) : Number(calories) || 0;
+    if (p + c + f > 0) setCalories(String(cal));
+    setPer100(fromDisplayed({ calories: cal, proteinG: p, carbsG: c, fatG: f }, unit, amount, gPerServing));
+  }
+
+  function onCalories(value: string) {
+    setCalories(value);
+    setPer100(
+      fromDisplayed(
+        { calories: Number(value) || 0, proteinG: Number(proteinG) || 0, carbsG: Number(carbsG) || 0, fatG: Number(fatG) || 0 },
+        unit,
+        amount,
+        gPerServing
+      )
+    );
+  }
+
+  function onAmount(value: number) {
+    setAmountSel(value);
+    const d = toDisplayed(per100, unit, value, gPerServing);
+    setCalories(String(d.calories));
+    setProteinG(String(d.proteinG));
+    setCarbsG(String(d.carbsG));
+    setFatG(String(d.fatG));
+  }
+
+  function onUnit(u: Unit) {
+    if (u === unit) return;
+    const next = convertAmount(amount, unit, u, gPerServing);
+    setUnitSel(u);
+    setAmountSel(next);
+    const d = toDisplayed(per100, u, next, gPerServing);
+    setCalories(String(d.calories));
+    setProteinG(String(d.proteinG));
+    setCarbsG(String(d.carbsG));
+    setFatG(String(d.fatG));
+  }
+
+  function onGPerServing(v: number) {
+    setGPerServingSel(v);
+    if (unit !== "serving") return;
+    const d = toDisplayed(per100, unit, amount, v);
+    setCalories(String(d.calories));
+    setProteinG(String(d.proteinG));
+    setCarbsG(String(d.carbsG));
+    setFatG(String(d.fatG));
+  }
 
   async function handleSave() {
     if (!name || !calories) {
@@ -133,21 +209,65 @@ export default function AddEntryModal({
             ))}
           </div>
         </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-xs uppercase text-on-surface-variant">Amount</span>
+            <div className="flex items-stretch gap-1">
+              <input
+                type="number"
+                min={0}
+                step="any"
+                aria-label="Amount"
+                value={amount}
+                onChange={(e) => onAmount(Number(e.target.value) || 0)}
+                className="w-20 border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+              />
+              <div className="flex border-2 border-outline-variant">
+                {(["g", "serving"] as const).map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    aria-pressed={unit === u}
+                    onClick={() => onUnit(u)}
+                    className={`px-2 font-mono text-[10px] font-bold uppercase transition-colors ${
+                      unit === u ? "bg-surface-container-high text-primary" : "bg-surface text-on-surface-variant opacity-60"
+                    }`}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {unit === "serving" && (
+            <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
+              g / serving
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={gPerServing}
+                onChange={(e) => onGPerServing(Number(e.target.value) || 0)}
+                className="w-24 border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+              />
+            </label>
+          )}
+        </div>
         <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
           Calories
           <input
             type="number"
             min={0}
             value={calories}
-            onChange={(e) => setCalories(e.target.value)}
+            onChange={(e) => onCalories(e.target.value)}
             className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
           />
         </label>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "P (g)", value: proteinG, set: setProteinG },
-            { label: "C (g)", value: carbsG, set: setCarbsG },
-            { label: "F (g)", value: fatG, set: setFatG },
+            { label: "P (g)", key: "proteinG" as const, value: proteinG },
+            { label: "C (g)", key: "carbsG" as const, value: carbsG },
+            { label: "F (g)", key: "fatG" as const, value: fatG },
           ].map((f) => (
             <label
               key={f.label}
@@ -158,7 +278,7 @@ export default function AddEntryModal({
                 type="number"
                 min={0}
                 value={f.value}
-                onChange={(e) => f.set(e.target.value)}
+                onChange={(e) => onMacro(f.key, e.target.value)}
                 className="border-2 border-outline-variant bg-surface p-2 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
               />
             </label>
