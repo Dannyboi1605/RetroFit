@@ -9,12 +9,17 @@ import { addMeal } from "@/db/db";
 import { analyzeScan, analyzeTextScan, lookupBarcodeScan } from "./actions";
 import { todayStr } from "@/lib/date";
 import { caloriesFromMacros } from "@/lib/tdee";
+import { toDisplayed, fromDisplayed, convertAmount, type Unit, type Per100 } from "@/lib/serving";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
 type ItemRow = {
   name: string;
-  portion: string;
+  portionLabel: string;
+  unit: Unit;
+  amount: number;
+  gPerServing: number;
+  per100: Per100;
   calories: string;
   proteinG: string;
   carbsG: string;
@@ -30,7 +35,18 @@ type ReviewResult = {
   barcode?: string;
 };
 
-const EMPTY_ITEM: ItemRow = { name: "", portion: "per 100g", calories: "", proteinG: "", carbsG: "", fatG: "" };
+const EMPTY_ITEM: ItemRow = {
+  name: "",
+  portionLabel: "per 100g",
+  unit: "g",
+  amount: 100,
+  gPerServing: 100,
+  per100: { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+  calories: "",
+  proteinG: "",
+  carbsG: "",
+  fatG: "",
+};
 
 function sumItems(items: ItemRow[]) {
   return items.reduce(
@@ -73,7 +89,16 @@ export default function ScanPage() {
       items: [
         {
           name: res.name,
-          portion: res.serving_size ?? "per 100g",
+          portionLabel: res.serving_size ?? "per 100g",
+          unit: "g",
+          amount: 100,
+          gPerServing: 100,
+          per100: {
+            calories: res.calories ?? 0,
+            proteinG: res.protein_g ?? 0,
+            carbsG: res.carbs_g ?? 0,
+            fatG: res.fat_g ?? 0,
+          },
           calories: res.calories ? String(res.calories) : "",
           proteinG: res.protein_g ? String(res.protein_g) : "",
           carbsG: res.carbs_g ? String(res.carbs_g) : "",
@@ -109,7 +134,7 @@ export default function ScanPage() {
               "error" in res
                 ? {
                     description: "",
-                    items: [{ ...EMPTY_ITEM, portion: "Barcode: " + decodedText }],
+                    items: [{ ...EMPTY_ITEM, portionLabel: "Barcode: " + decodedText }],
                     mealType: "snack",
                     source: "barcode",
                     barcode: decodedText,
@@ -135,20 +160,44 @@ export default function ScanPage() {
     };
   }, [mode, result]);
 
-  function applyResult(res: { description: string; reasoning?: string; items: { name: string; portion_description: string; calories: number; protein_g: number; carbs_g: number; fat_g: number }[] }) {
+  function applyResult(res: {
+    description: string;
+    reasoning?: string;
+    items: {
+      name: string;
+      portion_description: string;
+      estimated_weight_g: number;
+      calories: number;
+      protein_g: number;
+      carbs_g: number;
+      fat_g: number;
+    }[];
+  }) {
     setNotes("");
     setDescribe("");
     setResult({
       description: res.description,
       reasoning: res.reasoning,
-      items: res.items.map((i) => ({
-        name: i.name,
-        portion: i.portion_description,
-        calories: String(i.calories),
-        proteinG: String(i.protein_g),
-        carbsG: String(i.carbs_g),
-        fatG: String(i.fat_g),
-      })),
+      items: res.items.map((i) => {
+        const weight = i.estimated_weight_g > 0 ? i.estimated_weight_g : 100;
+        return {
+          name: i.name,
+          portionLabel: i.portion_description,
+          unit: "g",
+          amount: weight,
+          gPerServing: weight,
+          per100: fromDisplayed(
+            { calories: i.calories, proteinG: i.protein_g, carbsG: i.carbs_g, fatG: i.fat_g },
+            "g",
+            weight,
+            weight
+          ),
+          calories: String(i.calories),
+          proteinG: String(i.protein_g),
+          carbsG: String(i.carbs_g),
+          fatG: String(i.fat_g),
+        };
+      }),
       mealType: "snack",
       source: "ai_scan",
     });
@@ -200,11 +249,68 @@ export default function ScanPage() {
   function setMacro(index: number, key: "proteinG" | "carbsG" | "fatG", value: string) {
     setResult((r) => {
       if (!r) return r;
-      const next = { ...r.items[index], [key]: value };
+      const item = r.items[index];
+      const next = { ...item, [key]: value };
       const p = Number(next.proteinG) || 0;
       const c = Number(next.carbsG) || 0;
       const f = Number(next.fatG) || 0;
       if (p + c + f > 0) next.calories = String(caloriesFromMacros(p, c, f));
+      next.per100 = fromDisplayed(
+        { calories: Number(next.calories) || 0, proteinG: p, carbsG: c, fatG: f },
+        next.unit,
+        next.amount,
+        next.gPerServing
+      );
+      return { ...r, items: r.items.map((it, j) => (j === index ? next : it)) };
+    });
+  }
+
+  function setAmount(index: number, value: number) {
+    setResult((r) => {
+      if (!r) return r;
+      const item = r.items[index];
+      const d = toDisplayed(item.per100, item.unit, value, item.gPerServing);
+      return {
+        ...r,
+        items: r.items.map((it, j) =>
+          j === index
+            ? { ...it, amount: value, calories: String(d.calories), proteinG: String(d.proteinG), carbsG: String(d.carbsG), fatG: String(d.fatG) }
+            : it
+        ),
+      };
+    });
+  }
+
+  function setUnit(index: number, unit: Unit) {
+    setResult((r) => {
+      if (!r) return r;
+      const item = r.items[index];
+      if (item.unit === unit) return r;
+      const amount = convertAmount(item.amount, item.unit, unit, item.gPerServing);
+      const d = toDisplayed(item.per100, unit, amount, item.gPerServing);
+      return {
+        ...r,
+        items: r.items.map((it, j) =>
+          j === index
+            ? { ...it, unit, amount, calories: String(d.calories), proteinG: String(d.proteinG), carbsG: String(d.carbsG), fatG: String(d.fatG) }
+            : it
+        ),
+      };
+    });
+  }
+
+  function setGPerServing(index: number, gPerServing: number) {
+    setResult((r) => {
+      if (!r) return r;
+      const item = r.items[index];
+      const next = { ...item, gPerServing };
+      if (item.unit === "serving") {
+        const d = toDisplayed(item.per100, item.unit, item.amount, gPerServing);
+        next.calories = String(d.calories);
+        next.proteinG = String(d.proteinG);
+        next.carbsG = String(d.carbsG);
+        next.fatG = String(d.fatG);
+      }
       return { ...r, items: r.items.map((it, j) => (j === index ? next : it)) };
     });
   }
@@ -242,7 +348,7 @@ export default function ScanPage() {
         "error" in res
           ? {
               description: "",
-              items: [{ ...EMPTY_ITEM, portion: "Not found — fill in the details" }],
+              items: [{ ...EMPTY_ITEM, portionLabel: "Not found — fill in the details" }],
               mealType: "snack",
               source: "barcode",
               barcode: trimmed,
@@ -403,7 +509,55 @@ export default function ScanPage() {
                   />
                 </div>
               </div>
-              <div className="font-mono text-[11px] uppercase text-on-surface-variant">{item.portion}</div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex flex-col gap-1">
+                  <span className="font-mono text-[10px] uppercase text-on-surface-variant">Amount</span>
+                  <div className="flex items-stretch gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      aria-label={`Item ${i + 1} amount`}
+                      value={item.amount}
+                      onChange={(e) => setAmount(i, Number(e.target.value) || 0)}
+                      className="w-20 border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                    />
+                    <div className="flex border-2 border-outline-variant">
+                      {(["g", "serving"] as const).map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          aria-pressed={item.unit === u}
+                          onClick={() => setUnit(i, u)}
+                          className={`px-2 py-1.5 font-mono text-[10px] font-bold uppercase transition-colors ${
+                            item.unit === u
+                              ? "bg-surface-container-high text-primary"
+                              : "bg-surface text-on-surface-variant opacity-60"
+                          }`}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {item.unit === "serving" && (
+                  <label className="flex flex-col gap-1 font-mono text-[10px] uppercase text-on-surface-variant">
+                    g / serving
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={item.gPerServing}
+                      onChange={(e) => setGPerServing(i, Number(e.target.value) || 0)}
+                      className="w-24 border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
+                    />
+                  </label>
+                )}
+                {item.portionLabel && (
+                  <span className="ml-auto font-mono text-[11px] uppercase text-on-surface-variant">{item.portionLabel}</span>
+                )}
+              </div>
               <div className="grid grid-cols-4 gap-2">
                 <label className="flex flex-col gap-1 font-mono text-[10px] uppercase text-on-surface-variant">
                   Kcal
