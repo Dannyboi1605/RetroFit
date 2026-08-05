@@ -11,6 +11,18 @@ import {
   type Goal,
 } from "@/lib/tdee";
 
+export type QuestInitial = {
+  age?: string;
+  gender?: "male" | "female" | "";
+  heightCm?: string;
+  weightKg?: string;
+  activityLevel?: string;
+  proteinG?: string;
+  carbsG?: string;
+  fatG?: string;
+  goal?: string;
+};
+
 const STEPS = [
   { id: 1, label: "AGE & GENDER" },
   { id: 2, label: "HEIGHT & WEIGHT" },
@@ -35,18 +47,18 @@ const GOALS = [
 
 const initialState: QuestState = {};
 
-export default function QuestWizard() {
+export default function QuestWizard({ initial }: { initial?: QuestInitial }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [age, setAge] = useState("");
-  const [gender, setGender] = useState<"male" | "female" | "">("");
-  const [heightCm, setHeightCm] = useState("");
-  const [weightKg, setWeightKg] = useState("");
-  const [activityLevel, setActivityLevel] = useState("");
-  const [proteinG, setProteinG] = useState("");
-  const [carbsG, setCarbsG] = useState("");
-  const [fatG, setFatG] = useState("");
-  const [goal, setGoal] = useState("");
+  const [age, setAge] = useState(initial?.age ?? "");
+  const [gender, setGender] = useState<"male" | "female" | "">(initial?.gender ?? "");
+  const [heightCm, setHeightCm] = useState(initial?.heightCm ?? "");
+  const [weightKg, setWeightKg] = useState(initial?.weightKg ?? "");
+  const [activityLevel, setActivityLevel] = useState(initial?.activityLevel ?? "");
+  const [proteinG, setProteinG] = useState(initial?.proteinG ?? "");
+  const [carbsG, setCarbsG] = useState(initial?.carbsG ?? "");
+  const [fatG, setFatG] = useState(initial?.fatG ?? "");
+  const [goal, setGoal] = useState(initial?.goal ?? "");
 
   const [state, formAction, pending] = useActionState(saveQuest, initialState);
 
@@ -135,8 +147,9 @@ export default function QuestWizard() {
           formData.set("carbsG", carbsG);
           formData.set("fatG", fatG);
           formData.set("goal", goal);
+          formData.set("next", initial ? "/settings" : "/");
           const res = (await formAction(formData)) as QuestState | undefined;
-          if (!res?.error) router.replace("/");
+          if (!res?.error) router.replace(initial ? "/settings" : "/");
         }}
         className="snes-window flex flex-col gap-4 p-6"
       >
