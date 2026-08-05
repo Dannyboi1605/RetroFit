@@ -265,6 +265,30 @@ export default function ScanPage() {
     });
   }
 
+  function setCaloriesField(index: number, value: string) {
+    setResult((r) => {
+      if (!r) return r;
+      const item = r.items[index];
+      return {
+        ...r,
+        items: r.items.map((it, j) =>
+          j === index
+            ? {
+                ...it,
+                calories: value,
+                per100: fromDisplayed(
+                  { calories: Number(value) || 0, proteinG: Number(it.proteinG) || 0, carbsG: Number(it.carbsG) || 0, fatG: Number(it.fatG) || 0 },
+                  it.unit,
+                  it.amount,
+                  it.gPerServing
+                ),
+              }
+            : it
+        ),
+      };
+    });
+  }
+
   function setAmount(index: number, value: number) {
     setResult((r) => {
       if (!r) return r;
@@ -565,7 +589,7 @@ export default function ScanPage() {
                     type="number"
                     min={0}
                     value={item.calories}
-                    onChange={(e) => setItem(i, { calories: e.target.value })}
+                    onChange={(e) => setCaloriesField(i, e.target.value)}
                     className="border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
                   />
                 </label>

@@ -32,5 +32,5 @@ export function fromDisplayed(macros: Per100, unit: Unit, amount: number, gPerSe
 
 export function convertAmount(amount: number, from: Unit, to: Unit, gPerServing: number): number {
   const grams = amountToGrams(amount, from, gPerServing);
-  return to === "g" ? grams : grams / gPerServing;
+  return to === "g" ? grams : gPerServing > 0 ? grams / gPerServing : 0;
 }

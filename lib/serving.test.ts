@@ -18,4 +18,8 @@ console.assert(rt.calories === 500 && rt.proteinG === 10 && rt.carbsG === 20 && 
 const zero = fromDisplayed(per100, "g", 0, 100);
 console.assert(Number.isFinite(zero.calories) && zero.calories === 500, "zero grams is a no-op, not NaN");
 
+console.assert(convertAmount(150, "g", "serving", 0) === 0, "zero gPerServing never produces Infinity");
+const z = toDisplayed(per100, "serving", 1, 0);
+console.assert(z.calories === 0 && z.proteinG === 0, "zero gPerServing displays zero macros, not NaN");
+
 console.log("serving ok");
