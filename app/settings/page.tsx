@@ -38,6 +38,13 @@ export default async function SettingsPage() {
         <TargetsForm profile={profile} />
       </div>
 
+      <a
+        href="/quest?retake=1"
+        className="pixel-btn w-full text-center"
+      >
+        Retake Quest — Recalculate Your Targets
+      </a>
+
       <SyncStatus />
 
       <form action={logout}>
