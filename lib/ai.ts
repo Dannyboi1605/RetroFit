@@ -182,7 +182,8 @@ function runAnalysis(prompt: string, dataUrl?: string): Promise<MealAnalysisResu
 }
 
 const SHAPE_HINT =
-  'Return exactly this shape: {"reasoning": string, "description": string, "items": [{"name", "portion_description", "estimated_weight_g", "calories", "protein_g", "carbs_g", "fat_g"}]}.';
+  'Return exactly this shape: {"reasoning": string, "description": string, "items": [{"name", "portion_description", "estimated_weight_g", "calories", "protein_g", "carbs_g", "fat_g"}]}. ' +
+  '"description" is the meal name shown in history: keep it short, 3-5 words, e.g. "Grilled chicken & rice", never a sentence.';
 
 export async function analyzeMealImage(dataUrl: string, userNotes?: string): Promise<MealAnalysisResult> {
   let prompt =

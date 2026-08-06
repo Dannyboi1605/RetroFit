@@ -221,9 +221,21 @@ export default function LogPage() {
                     key={e.client_id}
                     className="flex items-center justify-between border border-surface-variant bg-surface-container-low p-2"
                   >
-                    <div className="flex flex-col">
+                    <div className="flex flex-col gap-1">
                       <span className="font-sans text-sm font-bold text-on-surface">{e.name}</span>
-                      <div className="mt-1 flex gap-2 font-mono text-[10px]">
+                      {e.ingredients && e.ingredients.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {e.ingredients.map((ing, idx) => (
+                            <span
+                              key={idx}
+                              className="border border-outline-variant/60 bg-surface-container px-1.5 py-0.5 font-mono text-[9px] uppercase text-on-surface-variant"
+                            >
+                              {ing.name} ({ing.calories} kcal)
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2 font-mono text-[10px]">
                         <span className="text-error">P: {e.protein_g}g</span>
                         <span className="text-tertiary">C: {e.carbs_g}g</span>
                         <span className="text-on-surface-variant">F: {e.fat_g}g</span>

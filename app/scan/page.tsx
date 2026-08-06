@@ -17,7 +17,7 @@ type ItemRow = {
   name: string;
   portionLabel: string;
   unit: Unit;
-  amount: number;
+  amount: string;
   gPerServing: number;
   per100: Per100;
   calories: string;
@@ -39,7 +39,7 @@ const EMPTY_ITEM: ItemRow = {
   name: "",
   portionLabel: "per 100g",
   unit: "g",
-  amount: 100,
+  amount: "100",
   gPerServing: 100,
   per100: { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
   calories: "",
@@ -91,7 +91,7 @@ export default function ScanPage() {
           name: res.name,
           portionLabel: res.serving_size ?? "per 100g",
           unit: "g",
-          amount: 100,
+          amount: "100",
           gPerServing: 100,
           per100: {
             calories: res.calories ?? 0,
@@ -115,16 +115,36 @@ export default function ScanPage() {
     if (mode !== "barcode" || result) return;
     let stopped = false;
     (async () => {
-      const { Html5Qrcode } = await import("html5-qrcode");
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
       if (stopped) return;
-      const scanner = new Html5Qrcode("barcode-container");
+      const scanner = new Html5Qrcode("barcode-container", {
+        verbose: false,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.ITF,
+        ],
+      });
       scannerRef.current = scanner;
       setScanning(true);
       setError(null);
       await scanner
         .start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          {
+            fps: 10,
+            videoConstraints: {
+              facingMode: "environment",
+              width: { min: 1280 },
+              height: { min: 720 },
+            },
+            qrbox: { width: 320, height: 160 },
+          },
           async (decodedText) => {
             await scanner.stop();
             scannerRef.current = null;
@@ -184,7 +204,7 @@ export default function ScanPage() {
           name: i.name,
           portionLabel: i.portion_description,
           unit: "g",
-          amount: weight,
+          amount: String(weight),
           gPerServing: weight,
           per100: fromDisplayed(
             { calories: i.calories, proteinG: i.protein_g, carbsG: i.carbs_g, fatG: i.fat_g },
@@ -246,6 +266,27 @@ export default function ScanPage() {
     setResult((r) => (r ? { ...r, items: r.items.map((it, j) => (j === index ? { ...it, ...patch } : it)) } : r));
   }
 
+  function removeItem(index: number) {
+    setResult((r) => (r ? { ...r, items: r.items.filter((_, j) => j !== index) } : r));
+  }
+
+  function addItem() {
+    setResult((r) =>
+      r
+        ? {
+            ...r,
+            items: [
+              ...r.items,
+              {
+                ...EMPTY_ITEM,
+                name: `Ingredient ${r.items.length + 1}`,
+              },
+            ],
+          }
+        : r
+    );
+  }
+
   function setMacro(index: number, key: "proteinG" | "carbsG" | "fatG", value: string) {
     setResult((r) => {
       if (!r) return r;
@@ -258,7 +299,7 @@ export default function ScanPage() {
       next.per100 = fromDisplayed(
         { calories: Number(next.calories) || 0, proteinG: p, carbsG: c, fatG: f },
         next.unit,
-        next.amount,
+        Number(next.amount) || 0,
         next.gPerServing
       );
       return { ...r, items: r.items.map((it, j) => (j === index ? next : it)) };
@@ -278,7 +319,7 @@ export default function ScanPage() {
                 per100: fromDisplayed(
                   { calories: Number(value) || 0, proteinG: Number(it.proteinG) || 0, carbsG: Number(it.carbsG) || 0, fatG: Number(it.fatG) || 0 },
                   it.unit,
-                  it.amount,
+                  Number(it.amount) || 0,
                   it.gPerServing
                 ),
               }
@@ -290,15 +331,15 @@ export default function ScanPage() {
 
   function setAmount(index: number, value: string) {
     setResult((r) => {
-      // empty input keeps the last valid amount — clearing must not nuke the macros
-      if (!r || value === "" || value === "-") return r;
+      if (!r || value === "-") return r;
       const item = r.items[index];
-      const d = toDisplayed(item.per100, item.unit, Number(value), item.gPerServing);
+      const n = Number(value) || 0;
+      const d = toDisplayed(item.per100, item.unit, n, item.gPerServing);
       return {
         ...r,
         items: r.items.map((it, j) =>
           j === index
-            ? { ...it, amount: Number(value), calories: String(d.calories), proteinG: String(d.proteinG), carbsG: String(d.carbsG), fatG: String(d.fatG) }
+            ? { ...it, amount: value, calories: String(d.calories), proteinG: String(d.proteinG), carbsG: String(d.carbsG), fatG: String(d.fatG) }
             : it
         ),
       };
@@ -310,8 +351,8 @@ export default function ScanPage() {
       if (!r) return r;
       const item = r.items[index];
       if (item.unit === unit) return r;
-      const amount = convertAmount(item.amount, item.unit, unit, item.gPerServing);
-      const d = toDisplayed(item.per100, unit, amount, item.gPerServing);
+      const amount = String(convertAmount(Number(item.amount) || 0, item.unit, unit, item.gPerServing));
+      const d = toDisplayed(item.per100, unit, Number(amount), item.gPerServing);
       return {
         ...r,
         items: r.items.map((it, j) =>
@@ -325,12 +366,12 @@ export default function ScanPage() {
 
   function setGPerServing(index: number, value: string) {
     setResult((r) => {
-      if (!r || value === "" || value === "-") return r;
+      if (!r || value === "-") return r;
       const item = r.items[index];
       const gPerServing = Number(value);
       const next = { ...item, gPerServing };
       if (item.unit === "serving") {
-        const d = toDisplayed(item.per100, item.unit, item.amount, gPerServing);
+        const d = toDisplayed(item.per100, item.unit, Number(item.amount) || 0, gPerServing);
         next.calories = String(d.calories);
         next.proteinG = String(d.proteinG);
         next.carbsG = String(d.carbsG);
@@ -344,7 +385,7 @@ export default function ScanPage() {
     if (!result) return;
     const t = sumItems(result.items);
     const name = result.description.trim() || result.items.find((i) => i.name)?.name || "Meal";
-    if (!t.calories) {
+    if (!t.calories && result.items.length > 0) {
       setError("Enter calories before saving");
       return;
     }
@@ -358,6 +399,15 @@ export default function ScanPage() {
       carbs_g: t.carbsG,
       fat_g: t.fatG,
       source: result.source,
+      ingredients: result.items.map((item) => ({
+        name: item.name || "Ingredient",
+        calories: Number(item.calories) || 0,
+        protein_g: Number(item.proteinG) || 0,
+        carbs_g: Number(item.carbsG) || 0,
+        fat_g: Number(item.fatG) || 0,
+        amount: item.amount,
+        unit: item.unit,
+      })),
     });
     setFlash("Meal logged!");
     setResult(null);
@@ -523,7 +573,7 @@ export default function ScanPage() {
           {result.items.map((item, i) => (
             <fieldset key={i} className="flex flex-col gap-2 border-2 border-outline-variant p-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-1 items-center gap-2">
                   <span className="font-mono text-[10px] font-bold uppercase text-tertiary">Item {i + 1}</span>
                   <input
                     aria-label={`Item ${i + 1} name`}
@@ -533,6 +583,16 @@ export default function ScanPage() {
                     className="w-full border-2 border-outline-variant bg-surface p-1.5 font-mono text-sm text-on-surface outline-none focus:border-primary-container"
                   />
                 </div>
+                <button
+                  type="button"
+                  aria-label={`Delete ${item.name || `Item ${i + 1}`}`}
+                  title="Delete ingredient"
+                  onClick={() => removeItem(i)}
+                  className="flex items-center gap-1 border border-error/50 bg-error/10 px-2 py-1 font-mono text-[10px] font-bold uppercase text-error transition-colors hover:bg-error hover:text-on-error"
+                >
+                  <span className="material-symbols-outlined text-sm">delete</span>
+                  Delete
+                </button>
               </div>
               <div className="flex flex-wrap items-end gap-2">
                 <div className="flex flex-col gap-1">
@@ -619,6 +679,17 @@ export default function ScanPage() {
               </div>
             </fieldset>
           ))}
+
+          {result.items.length === 0 && (
+            <div className="border-2 border-dashed border-outline-variant p-4 text-center font-mono text-xs text-on-surface-variant">
+              No ingredients listed. Click &quot;Add Ingredient&quot; below to add one manually.
+            </div>
+          )}
+
+          <button type="button" className="pixel-btn-secondary w-full" onClick={addItem}>
+            <span className="material-symbols-outlined text-base">add</span>
+            Add Ingredient
+          </button>
 
           <div className="border-2 border-primary bg-surface-container p-3">
             <div className="flex justify-between font-mono text-sm font-bold uppercase text-primary">

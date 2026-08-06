@@ -36,7 +36,7 @@ export default async function SettingsPage() {
 
         <div className="flex flex-col gap-6">
           {/* Top row: Goal + Activity pickers */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="snes-window flex flex-col gap-2 p-4">
               <GoalPicker goal={profile.goal as Goal} />
             </div>
@@ -54,7 +54,7 @@ export default async function SettingsPage() {
           </div>
 
           {/* Bottom row: Sync + Logout */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <SyncStatus />
             <div className="snes-window flex items-center justify-center p-4">
               <form action={logout}>

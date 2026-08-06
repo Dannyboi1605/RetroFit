@@ -38,9 +38,10 @@ export default function AddEntryModal({
   const [loggedDate, setLoggedDate] = useState(date);
   const [tried, setTried] = useState(false);
   const [unit, setUnitSel] = useState<Unit>("g");
-  const [amount, setAmountSel] = useState(100);
+  const [amount, setAmountSel] = useState("100");
   const [gPerServing, setGPerServingSel] = useState(100);
   const [per100, setPer100] = useState<Per100>({ calories: 0, proteinG: 0, carbsG: 0, fatG: 0 });
+  const [ingredients, setIngredients] = useState<Meal["ingredients"]>([]);
 
   useEffect(() => {
     if (editing) {
@@ -50,8 +51,9 @@ export default function AddEntryModal({
       setCarbsG(String(editing.carbs_g));
       setFatG(String(editing.fat_g));
       setUnitSel("g");
-      setAmountSel(100);
+      setAmountSel("100");
       setGPerServingSel(100);
+      setIngredients(editing.ingredients ? JSON.parse(JSON.stringify(editing.ingredients)) : []);
       setPer100(
         fromDisplayed(
           { calories: editing.calories, proteinG: editing.protein_g, carbsG: editing.carbs_g, fatG: editing.fat_g },
@@ -67,8 +69,9 @@ export default function AddEntryModal({
       setCarbsG("");
       setFatG("");
       setUnitSel("g");
-      setAmountSel(100);
+      setAmountSel("100");
       setGPerServingSel(100);
+      setIngredients([]);
       setPer100({ calories: 0, proteinG: 0, carbsG: 0, fatG: 0 });
     }
     setMealTypeSel(mealType);
@@ -82,6 +85,51 @@ export default function AddEntryModal({
 
   if (!open) return null;
 
+  function recalculateFromIngredients(ings: NonNullable<Meal["ingredients"]>) {
+    if (ings.length === 0) return;
+    const totals = ings.reduce(
+      (acc, i) => ({
+        calories: acc.calories + (Number(i.calories) || 0),
+        protein_g: acc.protein_g + (Number(i.protein_g) || 0),
+        carbs_g: acc.carbs_g + (Number(i.carbs_g) || 0),
+        fat_g: acc.fat_g + (Number(i.fat_g) || 0),
+      }),
+      { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+    );
+    setCalories(String(totals.calories));
+    setProteinG(String(totals.protein_g));
+    setCarbsG(String(totals.carbs_g));
+    setFatG(String(totals.fat_g));
+    setPer100(
+      fromDisplayed(
+        { calories: totals.calories, proteinG: totals.protein_g, carbsG: totals.carbs_g, fatG: totals.fat_g },
+        unit,
+        Number(amount) || 0,
+        gPerServing
+      )
+    );
+  }
+
+  function handleDeleteIngredient(index: number) {
+    const next = (ingredients ?? []).filter((_, i) => i !== index);
+    setIngredients(next);
+    recalculateFromIngredients(next);
+  }
+
+  function handleUpdateIngredient(index: number, patch: Partial<NonNullable<Meal["ingredients"]>[number]>) {
+    const next = (ingredients ?? []).map((ing, i) => (i === index ? { ...ing, ...patch } : ing));
+    setIngredients(next);
+    recalculateFromIngredients(next);
+  }
+
+  function handleAddIngredient() {
+    const next = [
+      ...(ingredients ?? []),
+      { name: `Ingredient ${(ingredients?.length ?? 0) + 1}`, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+    ];
+    setIngredients(next);
+  }
+
   function onMacro(key: "proteinG" | "carbsG" | "fatG", value: string) {
     if (key === "proteinG") setProteinG(value);
     if (key === "carbsG") setCarbsG(value);
@@ -91,7 +139,7 @@ export default function AddEntryModal({
     const f = key === "fatG" ? Number(value) || 0 : Number(fatG) || 0;
     const cal = p + c + f > 0 ? caloriesFromMacros(p, c, f) : Number(calories) || 0;
     if (p + c + f > 0) setCalories(String(cal));
-    setPer100(fromDisplayed({ calories: cal, proteinG: p, carbsG: c, fatG: f }, unit, amount, gPerServing));
+    setPer100(fromDisplayed({ calories: cal, proteinG: p, carbsG: c, fatG: f }, unit, Number(amount) || 0, gPerServing));
   }
 
   function onCalories(value: string) {
@@ -100,17 +148,16 @@ export default function AddEntryModal({
       fromDisplayed(
         { calories: Number(value) || 0, proteinG: Number(proteinG) || 0, carbsG: Number(carbsG) || 0, fatG: Number(fatG) || 0 },
         unit,
-        amount,
+        Number(amount) || 0,
         gPerServing
       )
     );
   }
 
   function onAmount(value: string) {
-    // empty input keeps the last valid amount — clearing must not nuke the macros
-    if (value === "" || value === "-") return;
-    const n = Number(value);
-    setAmountSel(n);
+    if (value === "-") return;
+    setAmountSel(value);
+    const n = Number(value) || 0;
     const d = toDisplayed(per100, unit, n, gPerServing);
     setCalories(String(d.calories));
     setProteinG(String(d.proteinG));
@@ -120,10 +167,10 @@ export default function AddEntryModal({
 
   function onUnit(u: Unit) {
     if (u === unit) return;
-    const next = convertAmount(amount, unit, u, gPerServing);
+    const next = String(convertAmount(Number(amount) || 0, unit, u, gPerServing));
     setUnitSel(u);
     setAmountSel(next);
-    const d = toDisplayed(per100, u, next, gPerServing);
+    const d = toDisplayed(per100, u, Number(next), gPerServing);
     setCalories(String(d.calories));
     setProteinG(String(d.proteinG));
     setCarbsG(String(d.carbsG));
@@ -131,11 +178,11 @@ export default function AddEntryModal({
   }
 
   function onGPerServing(value: string) {
-    if (value === "" || value === "-") return;
+    if (value === "-") return;
     const n = Number(value);
     setGPerServingSel(n);
     if (unit !== "serving") return;
-    const d = toDisplayed(per100, unit, amount, n);
+    const d = toDisplayed(per100, unit, Number(amount) || 0, n);
     setCalories(String(d.calories));
     setProteinG(String(d.proteinG));
     setCarbsG(String(d.carbsG));
@@ -153,6 +200,7 @@ export default function AddEntryModal({
       protein_g: Number(proteinG) || 0,
       carbs_g: Number(carbsG) || 0,
       fat_g: Number(fatG) || 0,
+      ingredients: ingredients && ingredients.length > 0 ? ingredients : undefined,
     };
     if (editing) {
       await updateMeal(editing.client_id, { ...input, meal_type: mealTypeSel });
@@ -180,7 +228,7 @@ export default function AddEntryModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="snes-window flex w-full max-w-sm flex-col gap-4 p-6">
+      <div className="snes-window flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto p-6">
         <h2 className="font-headline text-lg font-bold uppercase tracking-widest text-primary">
           {editing ? "Edit Entry" : "Add Entry"} — {mealTypeSel}
         </h2>
@@ -214,6 +262,99 @@ export default function AddEntryModal({
             ))}
           </div>
         </div>
+
+        {/* Ingredients section */}
+        <div className="flex flex-col gap-2 border-2 border-outline-variant bg-surface-container-low p-3">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-xs font-bold uppercase text-tertiary">
+              Ingredients / Breakdown
+            </span>
+            <button
+              type="button"
+              onClick={handleAddIngredient}
+              className="flex items-center gap-1 font-mono text-[10px] font-bold uppercase text-primary hover:underline"
+            >
+              <span className="material-symbols-outlined text-sm">add</span>
+              Add Ingredient
+            </button>
+          </div>
+
+          {ingredients && ingredients.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {ingredients.map((ing, i) => (
+                <div key={i} className="flex flex-col gap-1.5 border border-outline-variant bg-surface p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      aria-label={`Ingredient ${i + 1} name`}
+                      value={ing.name}
+                      onChange={(e) => handleUpdateIngredient(i, { name: e.target.value })}
+                      placeholder="Ingredient name (e.g. Veges)"
+                      className="w-full border border-outline-variant bg-surface-container p-1 font-mono text-xs text-on-surface outline-none focus:border-primary-container"
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Delete ingredient ${ing.name}`}
+                      title="Delete ingredient"
+                      onClick={() => handleDeleteIngredient(i)}
+                      className="flex items-center gap-1 border border-error/50 bg-error/10 px-2 py-1 font-mono text-[10px] font-bold uppercase text-error transition-colors hover:bg-error hover:text-on-error"
+                    >
+                      <span className="material-symbols-outlined text-xs">delete</span>
+                      Delete
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1">
+                    <label className="flex flex-col gap-0.5 font-mono text-[9px] uppercase text-on-surface-variant">
+                      Kcal
+                      <input
+                        type="number"
+                        min={0}
+                        value={ing.calories}
+                        onChange={(e) => handleUpdateIngredient(i, { calories: Number(e.target.value) || 0 })}
+                        className="border border-outline-variant bg-surface-container p-1 font-mono text-xs text-on-surface outline-none focus:border-primary-container"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-0.5 font-mono text-[9px] uppercase text-on-surface-variant">
+                      P (g)
+                      <input
+                        type="number"
+                        min={0}
+                        value={ing.protein_g}
+                        onChange={(e) => handleUpdateIngredient(i, { protein_g: Number(e.target.value) || 0 })}
+                        className="border border-outline-variant bg-surface-container p-1 font-mono text-xs text-on-surface outline-none focus:border-primary-container"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-0.5 font-mono text-[9px] uppercase text-on-surface-variant">
+                      C (g)
+                      <input
+                        type="number"
+                        min={0}
+                        value={ing.carbs_g}
+                        onChange={(e) => handleUpdateIngredient(i, { carbs_g: Number(e.target.value) || 0 })}
+                        className="border border-outline-variant bg-surface-container p-1 font-mono text-xs text-on-surface outline-none focus:border-primary-container"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-0.5 font-mono text-[9px] uppercase text-on-surface-variant">
+                      F (g)
+                      <input
+                        type="number"
+                        min={0}
+                        value={ing.fat_g}
+                        onChange={(e) => handleUpdateIngredient(i, { fat_g: Number(e.target.value) || 0 })}
+                        className="border border-outline-variant bg-surface-container p-1 font-mono text-xs text-on-surface outline-none focus:border-primary-container"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="font-mono text-[11px] text-on-surface-variant">
+              No ingredients listed. Delete or add ingredients here to adjust meal totals automatically.
+            </p>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1">
             <span className="font-mono text-xs uppercase text-on-surface-variant">Serving size</span>
@@ -262,10 +403,10 @@ export default function AddEntryModal({
           )}
         </div>
         <div className="font-mono text-xs text-on-surface-variant">
-          Macros adjust automatically when you change the serving size
+          Macros adjust automatically when you change the serving size or edit ingredients
         </div>
         <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
-          Calories
+          Total Calories
           <input
             type="number"
             min={0}

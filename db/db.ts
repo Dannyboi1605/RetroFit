@@ -1,6 +1,16 @@
 import Dexie, { type Table } from "dexie";
 import { dateStr } from "@/lib/date";
 
+export type MealIngredient = {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  amount?: string;
+  unit?: string;
+};
+
 export type Meal = {
   client_id: string;
   user_id?: string;
@@ -12,6 +22,7 @@ export type Meal = {
   carbs_g: number;
   fat_g: number;
   source: "manual" | "ai_scan" | "barcode" | "custom_favorite";
+  ingredients?: MealIngredient[];
   created_at: string;
   synced: 0 | 1;
   deleted: 0 | 1;
@@ -53,6 +64,7 @@ export async function addMeal(input: {
   carbs_g: number;
   fat_g: number;
   source?: Meal["source"];
+  ingredients?: MealIngredient[];
 }): Promise<string> {
   const client_id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -67,6 +79,7 @@ export async function addMeal(input: {
       carbs_g: input.carbs_g,
       fat_g: input.fat_g,
       source: input.source ?? "manual",
+      ingredients: input.ingredients,
       created_at: now,
       synced: 0,
       deleted: 0,
