@@ -212,6 +212,18 @@ input[type="number"] {
   }
 }
 
+@keyframes scanline-anim {
+  0% {
+    top: 0%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+.scanline-anim {
+  animation: scanline-anim 2.5s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scanline-anim {
     animation: none;

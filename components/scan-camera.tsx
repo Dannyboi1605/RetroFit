@@ -136,7 +136,6 @@ export default function ScanCamera({
         <span className="material-symbols-outlined text-base">camera_alt</span>
         Capture
       </button>
-      <style>{`@keyframes scanline-anim { 0% { top: 0% } 100% { top: 100% } } .scanline-anim { animation: scanline-anim 2.5s linear infinite; }`}</style>
     </div>
   );
 }

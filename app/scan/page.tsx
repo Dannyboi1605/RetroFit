@@ -71,6 +71,7 @@ export default function ScanPage() {
   const [flash, setFlash] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [started, setStarted] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
@@ -132,6 +133,7 @@ export default function ScanPage() {
       });
       scannerRef.current = scanner;
       setScanning(true);
+      setStarted(false);
       setError(null);
       await scanner
         .start(
@@ -164,8 +166,12 @@ export default function ScanPage() {
           },
           () => {}
         )
+        .then(() => {
+          if (!stopped) setStarted(true);
+        })
         .catch(() => {
           scannerRef.current = null;
+          setScanning(false);
           if (!stopped) setError("Camera unavailable — enter the barcode manually instead.");
         });
     })();
@@ -177,6 +183,8 @@ export default function ScanPage() {
         // scanner was never started (camera unavailable) — nothing to stop
       }
       scannerRef.current = null;
+      setScanning(false);
+      setStarted(false);
     };
   }, [mode, result]);
 
@@ -752,11 +760,25 @@ export default function ScanPage() {
           </h2>
           <div className="relative aspect-square w-full overflow-hidden border-2 border-outline-variant bg-surface-container lg:mx-auto lg:max-w-md">
             <div id="barcode-container" className="h-full w-full" />
-            {scanning && (
+            {scanning && !started && (
+              <div className="absolute inset-0 flex items-center justify-center font-mono text-xs font-semibold uppercase text-on-surface-variant">
+                Starting camera...
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute inset-x-4 top-4 h-1 border-x-2 border-t-2 border-tertiary" />
+              <div className="absolute inset-x-4 bottom-4 h-1 border-x-2 border-b-2 border-tertiary" />
+              <div className="absolute inset-y-4 left-4 w-1 border-y-2 border-l-2 border-tertiary" />
+              <div className="absolute inset-y-4 right-4 w-1 border-y-2 border-r-2 border-tertiary" />
+            </div>
+            {scanning && started && (
               <div className="pointer-events-none absolute inset-0">
                 <div className="scanline-anim pointer-events-none absolute inset-x-0 top-0 h-1 bg-primary/60" />
-                <div className="absolute inset-0 flex items-end justify-center pb-3 font-mono text-[10px] font-semibold uppercase text-on-surface-variant">
-                  Point at the barcode
+                <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+                  <span className="flex items-center gap-1.5 bg-surface/80 px-2 py-1 font-mono text-[10px] font-semibold uppercase text-on-surface-variant">
+                    <span className="material-symbols-outlined text-xs">barcode_scanner</span>
+                    Point at the barcode
+                  </span>
                 </div>
               </div>
             )}
