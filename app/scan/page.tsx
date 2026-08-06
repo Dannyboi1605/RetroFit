@@ -7,6 +7,7 @@ import AddEntryModal from "@/components/add-entry-modal";
 import SaveToast from "@/components/save-toast";
 import { addMeal } from "@/db/db";
 import { analyzeScan, analyzeTextScan, lookupBarcodeScan } from "./actions";
+import type { BarcodeResult } from "@/lib/ai";
 import { todayStr } from "@/lib/date";
 import { caloriesFromMacros } from "@/lib/tdee";
 import { toDisplayed, fromDisplayed, convertAmount, type Unit, type Per100 } from "@/lib/serving";
@@ -76,34 +77,29 @@ export default function ScanPage() {
   const [manualCode, setManualCode] = useState("");
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
 
-  function barcodeReview(res: {
-    name: string;
-    calories?: number;
-    protein_g?: number;
-    carbs_g?: number;
-    fat_g?: number;
-    serving_size?: string;
-    barcode: string;
-  }): ReviewResult {
+  function barcodeReview(res: BarcodeResult): ReviewResult {
+    const amount = res.serving_quantity > 0 ? res.serving_quantity : 100;
+    const per100: Per100 = {
+      calories: res.calories_100g ?? 0,
+      proteinG: res.protein_100g ?? 0,
+      carbsG: res.carbs_100g ?? 0,
+      fatG: res.fat_100g ?? 0,
+    };
+    const d = toDisplayed(per100, "g", amount, amount);
     return {
       description: res.name,
       items: [
         {
           name: res.name,
-          portionLabel: res.serving_size ?? "per 100g",
+          portionLabel: res.serving_size || "100 g",
           unit: "g",
-          amount: "100",
-          gPerServing: 100,
-          per100: {
-            calories: res.calories ?? 0,
-            proteinG: res.protein_g ?? 0,
-            carbsG: res.carbs_g ?? 0,
-            fatG: res.fat_g ?? 0,
-          },
-          calories: res.calories ? String(res.calories) : "",
-          proteinG: res.protein_g ? String(res.protein_g) : "",
-          carbsG: res.carbs_g ? String(res.carbs_g) : "",
-          fatG: res.fat_g ? String(res.fat_g) : "",
+          amount: String(amount),
+          gPerServing: amount,
+          per100,
+          calories: d.calories ? String(d.calories) : "",
+          proteinG: d.proteinG ? String(d.proteinG) : "",
+          carbsG: d.carbsG ? String(d.carbsG) : "",
+          fatG: d.fatG ? String(d.fatG) : "",
         },
       ],
       mealType: "snack",
@@ -139,13 +135,14 @@ export default function ScanPage() {
         .start(
           { facingMode: "environment" },
           {
-            fps: 10,
+            fps: 20,
+            qrbox: { width: 280, height: 180 },
             videoConstraints: {
               facingMode: "environment",
-              width: { min: 1280 },
-              height: { min: 720 },
-            },
-            qrbox: { width: 320, height: 160 },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              focusMode: "continuous",
+            } as MediaTrackConstraints,
           },
           async (decodedText) => {
             await scanner.stop();

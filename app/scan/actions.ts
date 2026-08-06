@@ -21,12 +21,12 @@ export async function analyzeTextScan(description: string): Promise<MealAnalysis
   }
 }
 
-export async function lookupBarcodeScan(barcode: string): Promise<BarcodeResult | { error: string }> {
+export async function lookupBarcodeScan(barcode: string): Promise<BarcodeResult | { success: false; error: string }> {
   try {
     const result = await lookupBarcode(barcode);
-    if (!result) return { error: "Barcode not found in Open Food Facts" };
+    if (!result) return { success: false, error: "Barcode not found in Open Food Facts" };
     return result;
   } catch {
-    return { error: "Lookup failed — try again" };
+    return { success: false, error: "Lookup failed — try again" };
   }
 }

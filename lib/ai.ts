@@ -25,15 +25,16 @@ export type MealAnalysisResult = {
   items: MealItem[];
 };
 
-export type BarcodeResult = {
+export interface BarcodeResult {
   name: string;
-  calories?: number;
-  protein_g?: number;
-  carbs_g?: number;
-  fat_g?: number;
-  serving_size?: string;
   barcode: string;
-};
+  serving_size: string;
+  serving_quantity: number;
+  calories_100g: number | null;
+  protein_100g: number | null;
+  carbs_100g: number | null;
+  fat_100g: number | null;
+}
 
 export class AIError extends Error {}
 
@@ -211,12 +212,12 @@ export async function analyzeMealText(description: string): Promise<MealAnalysis
   return runAnalysis(prompt);
 }
 
-export async function lookupBarcode(barcode: string): Promise<BarcodeResult | null> {
-  const code = String(barcode).trim();
-  if (!/^\d{8,14}$/.test(code)) return null;
+// Open Food Facts rejects bare/generic user agents; the UA must describe the app.
+const OFF_HEADERS = { "User-Agent": "NutriTrackApp - Web - Version 1.0 - contact@example.com" };
 
+async function fetchBarcodeProduct(code: string): Promise<BarcodeResult | null> {
   const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`, {
-    headers: { "User-Agent": "RetroFit/1.0 (personal calorie tracker)" },
+    headers: OFF_HEADERS,
   });
   if (!res.ok) return null;
 
@@ -225,23 +226,29 @@ export async function lookupBarcode(barcode: string): Promise<BarcodeResult | nu
 
   const p = data.product;
   const n = p.nutriments ?? {};
-  const quantityG = Number(p.quantity?.match(/\d+(\.\d+)?/)?.[0]);
-  const scale = quantityG && quantityG > 0 ? quantityG / 100 : 1;
+  const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  const servingQ = num(p.serving_quantity);
 
-  const result: BarcodeResult = {
+  return {
     barcode: code,
     name: cleanStr(p.product_name, `Product ${code}`, 80),
-    serving_size: p.quantity ? String(p.quantity).slice(0, 40) : "per 100g",
+    serving_size: cleanStr(p.serving_size, "100 g", 40),
+    serving_quantity: servingQ && servingQ > 0 ? servingQ : 100,
+    calories_100g: num(n["energy-kcal_100g"]),
+    protein_100g: num(n["proteins_100g"]),
+    carbs_100g: num(n["carbohydrates_100g"]),
+    fat_100g: num(n["fat_100g"]),
   };
-  for (const [key, field] of [
-    ["calories", "energy-kcal_100g"],
-    ["protein_g", "proteins_100g"],
-    ["carbs_g", "carbohydrates_100g"],
-    ["fat_g", "fat_100g"],
-  ] as const) {
-    if (Number.isFinite(Number(n[field]))) {
-      result[key] = Math.round(Number(n[field]) * scale);
-    }
-  }
-  return result;
+}
+
+export async function lookupBarcode(barcode: string): Promise<BarcodeResult | null> {
+  const code = String(barcode).trim();
+  if (!/^\d{8,14}$/.test(code)) return null;
+
+  const result = await fetchBarcodeProduct(code);
+  if (result) return result;
+  // US products often scan as 12-digit UPC-A; OFF indexes the same digits as a
+  // 13-digit EAN-13 with a leading zero — retry that.
+  if (code.length === 12) return fetchBarcodeProduct(`0${code}`);
+  return null;
 }
