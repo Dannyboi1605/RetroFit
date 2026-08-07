@@ -153,6 +153,18 @@ export async function addWeight(input: {
   return client_id;
 }
 
+export async function deleteWeight(clientId: string): Promise<void> {
+  await db.transaction("rw", [db.weightLogs, db.syncQueue], async () => {
+    await db.weightLogs.update(clientId, { deleted: 1 });
+    await db.syncQueue.put({
+      client_id: clientId,
+      table: "weightLogs",
+      op: "delete",
+      created_at: new Date().toISOString(),
+    });
+  });
+}
+
 export async function listWeightLogs(rangeDays?: number): Promise<WeightLog[]> {
   const all = await db.weightLogs
     .filter((w) => w.deleted === 0)

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app-shell";
 import SaveToast from "@/components/save-toast";
-import { addWeight, listWeightLogs, type WeightLog } from "@/db/db";
+import { addWeight, deleteWeight, listWeightLogs, type WeightLog } from "@/db/db";
 import { initSync } from "@/lib/sync";
 import { dateStr, todayStr } from "@/lib/date";
 import { useElementSize } from "@/lib/use-element-size";
@@ -21,6 +21,8 @@ export default function WeightPage() {
   const [weight, setWeight] = useState("");
   const [note, setNote] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
+  const [editing, setEditing] = useState<WeightLog | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const { ref: chartBoxRef, size } = useElementSize<HTMLDivElement>();
 
   const kg = Number(weight);
@@ -69,11 +71,23 @@ export default function WeightPage() {
 
   async function handleSave() {
     if (weightInvalid) return;
+    if (editing && date !== editing.logged_date) {
+      await deleteWeight(editing.client_id);
+    }
     await addWeight({ logged_date: date, weight_kg: kg, note: note || undefined });
     setWeight("");
     setNote("");
-    setFlash("Weight saved!");
+    setDate(todayStr());
+    setEditing(null);
+    setFlash(editing ? "Weight updated!" : "Weight saved!");
     refresh();
+  }
+
+  function startEdit(w: WeightLog) {
+    setEditing(w);
+    setDate(w.logged_date);
+    setWeight(String(w.weight_kg));
+    setNote(w.note ?? "");
   }
 
   return (
@@ -175,7 +189,7 @@ export default function WeightPage() {
 
       <div className="snes-window flex flex-col gap-4 p-4">
         <h2 className="border-b-2 border-surface-variant pb-2 font-headline text-lg font-bold uppercase tracking-widest text-tertiary">
-          Log Weight
+          {editing ? "Edit Weight" : "Log Weight"}
         </h2>
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-1 font-mono text-xs uppercase text-on-surface-variant">
@@ -215,8 +229,21 @@ export default function WeightPage() {
         </label>
         <button className="pixel-btn w-full disabled:opacity-50" disabled={weightInvalid} onClick={handleSave}>
           <span className="material-symbols-outlined text-base">monitor_weight</span>
-          Save Weight
+          {editing ? "Update Weight" : "Save Weight"}
         </button>
+        {editing && (
+          <button
+            className="pixel-btn-secondary w-full py-2 font-mono text-sm"
+            onClick={() => {
+              setEditing(null);
+              setDate(todayStr());
+              setWeight("");
+              setNote("");
+            }}
+          >
+            Cancel
+          </button>
+        )}
       </div>
       </div>
 
@@ -229,7 +256,7 @@ export default function WeightPage() {
         {[...filtered].reverse().map((w) => (
           <div
             key={w.client_id}
-            className="flex items-center justify-between border border-surface-variant bg-surface-container-low p-2"
+            className="flex items-center justify-between gap-2 border border-surface-variant bg-surface-container-low p-2"
           >
             <div className="flex flex-col">
               <span className="font-mono text-xs text-on-surface-variant">
@@ -241,7 +268,38 @@ export default function WeightPage() {
               </span>
               {w.note && <span className="font-sans text-xs text-on-surface">{w.note}</span>}
             </div>
-            <span className="font-mono text-base font-bold text-tertiary">{w.weight_kg} kg</span>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-base font-bold text-tertiary">{w.weight_kg} kg</span>
+              <button
+                className="text-on-surface-variant transition-colors hover:text-primary"
+                aria-label="Edit weight"
+                onClick={() => startEdit(w)}
+              >
+                <span className="material-symbols-outlined text-lg">edit</span>
+              </button>
+              {confirmDelete === w.client_id ? (
+                <button
+                  data-confirm-delete
+                  className="pixel-btn-danger flex items-center gap-1 px-2 py-1 font-mono text-[10px] font-bold uppercase"
+                  onClick={async () => {
+                    await deleteWeight(w.client_id);
+                    setConfirmDelete(null);
+                    refresh();
+                  }}
+                >
+                  <span className="material-symbols-outlined text-base">close</span>
+                  Sure?
+                </button>
+              ) : (
+                <button
+                  className="text-on-error transition-colors hover:text-error"
+                  aria-label="Delete weight"
+                  onClick={() => setConfirmDelete(w.client_id)}
+                >
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                </button>
+              )}
+            </div>
           </div>
         ))}
         {filtered.length === 0 && (
