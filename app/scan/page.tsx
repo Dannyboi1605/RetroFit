@@ -8,7 +8,7 @@ import SaveToast from "@/components/save-toast";
 import { addMeal } from "@/db/db";
 import { analyzeScan, analyzeTextScan, lookupBarcodeScan } from "./actions";
 import type { BarcodeResult } from "@/lib/ai";
-import { todayStr } from "@/lib/date";
+import { todayStr, defaultMealType } from "@/lib/date";
 import { caloriesFromMacros } from "@/lib/tdee";
 import { toDisplayed, fromDisplayed, convertAmount, type Unit, type Per100 } from "@/lib/serving";
 
@@ -102,7 +102,7 @@ export default function ScanPage() {
           fatG: d.fatG ? String(d.fatG) : "",
         },
       ],
-      mealType: "snack",
+      mealType: defaultMealType(),
       source: "barcode",
       barcode: res.barcode,
     };
@@ -154,7 +154,7 @@ export default function ScanPage() {
                 ? {
                     description: "",
                     items: [{ ...EMPTY_ITEM, portionLabel: "Barcode: " + decodedText }],
-                    mealType: "snack",
+                    mealType: defaultMealType(),
                     source: "barcode",
                     barcode: decodedText,
                   }
@@ -223,7 +223,7 @@ export default function ScanPage() {
           fatG: String(i.fat_g),
         };
       }),
-      mealType: "snack",
+      mealType: defaultMealType(),
       source: "ai_scan",
     });
   }
@@ -429,7 +429,7 @@ export default function ScanPage() {
           ? {
               description: "",
               items: [{ ...EMPTY_ITEM, portionLabel: "Not found — fill in the details" }],
-              mealType: "snack",
+              mealType: defaultMealType(),
               source: "barcode",
               barcode: trimmed,
             }
@@ -817,7 +817,7 @@ export default function ScanPage() {
         <AddEntryModal
           open
           date={todayStr()}
-          mealType="snack"
+          mealType={defaultMealType()}
           onClose={() => setManualOpen(false)}
           onSaved={() => setFlash("Meal logged!")}
         />

@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RetroFit
+
+An 8-bit SNES RPG-themed, dark-mode Progressive Web App for personal calorie and macro tracking. Built with a high-contrast pixel aesthetic, modern UI ergonomics, and an offline-first sync architecture.
+
+## Features
+
+- **Home Dashboard** – calories/macros vs. target with pixel-progress bars and a weight trend graph
+- **Daily Meal Logging** — log, edit, and delete meals across breakfast, lunch, dinner, snacks
+- **AI Meal Scan** — camera photo → Gemini vision API (via OpenRouter, server-side key) → calorie/macro estimates
+- **Barcode Scanner** — camera barcode lookup against Open Food Facts, with manual fallback
+- **Weight Tracker** — daily weigh-ins with delta and trend charts
+- **TDEE Quest Wizard** — 4-step Mifflin-St Jeor onboarding that computes calorie/macro targets; re-runnable anytime from Settings
+- **Offline-First** — all writes hit IndexedDB (Dexie) instantly and sync to Supabase via a background queue with client-generated IDs for idempotency
+- **Single-admin auth** — public signup disabled; session persisted via Supabase cookies and retained offline
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.local` (or create it) with:
 
-## Learn More
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+OPENROUTER_API_KEY=        # AI meal scan (server-side only)
+GEMINI_API_KEY=            # optional; used by some AI tooling
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Database setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Apply `db/schema.sql` to your Supabase project (tables: profiles, logged_meals, weight_logs, custom_foods, plus RLS policies). Enable the `pgcrypto` extension and disable public signup in Supabase Auth, then pre-seed your account.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Script | Description |
+| ------ | ----------- |
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run start` | Start production build |
+| `npm run lint` | ESLint |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Tech Stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Layer | Technology |
+| ----- | ---------- |
+| Frontend | Next.js (App Router, React 19, TypeScript) |
+| Styling | Tailwind CSS 4, pixel/retro design system |
+| Database & Auth | Supabase (PostgreSQL, RLS, cookie sessions) |
+| Local storage | IndexedDB via Dexie.js |
+| AI vision | OpenRouter (Gemini flash) via Server Actions |
+| Food database | Open Food Facts API |
+
+## Resources
+
+- Product spec: `RetroFit_PRD_v2.md`
+- Manual test checklist: `docs/MANUAL_TESTING.md`

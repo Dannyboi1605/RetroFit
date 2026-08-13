@@ -15,3 +15,13 @@ export function shiftDate(date: string, days: number): string {
   d.setDate(d.getDate() + days);
   return dateStr(d);
 }
+
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+export function defaultMealType(d: Date = new Date()): MealType {
+  const h = d.getHours();
+  if (h >= 5 && h < 10) return "breakfast";
+  if (h >= 11 && h < 14) return "lunch";
+  if (h >= 17 && h < 21) return "dinner";
+  return "snack";
+}
