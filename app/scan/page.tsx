@@ -49,6 +49,8 @@ const EMPTY_ITEM: ItemRow = {
   fatG: "",
 };
 
+let lastScanErrorLog = 0;
+
 function sumItems(items: ItemRow[]) {
   return items.reduce(
     (t, i) => {
@@ -116,6 +118,7 @@ export default function ScanPage() {
       if (stopped) return;
       const scanner = new Html5Qrcode("barcode-container", {
         verbose: false,
+        useBarCodeDetectorIfSupported: false,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.EAN_13,
           Html5QrcodeSupportedFormats.EAN_8,
@@ -135,13 +138,12 @@ export default function ScanPage() {
         .start(
           { facingMode: "environment" },
           {
-            fps: 20,
-            qrbox: { width: 280, height: 180 },
+            fps: 10,
+            qrbox: { width: 320, height: 200 },
             videoConstraints: {
               facingMode: "environment",
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              focusMode: "continuous",
+              width: { min: 1280, ideal: 1920 },
+              height: { min: 720, ideal: 1080 },
             } as MediaTrackConstraints,
           },
           async (decodedText) => {
@@ -161,7 +163,14 @@ export default function ScanPage() {
                 : barcodeReview(res)
             );
           },
-          () => {}
+          (err) => {
+            if (process.env.NODE_ENV !== "development") return;
+            const now = Date.now();
+            if (now - lastScanErrorLog > 2000) {
+              lastScanErrorLog = now;
+              console.debug("[barcode-scan] decode failed:", err);
+            }
+          }
         )
         .then(() => {
           if (!stopped) setStarted(true);
