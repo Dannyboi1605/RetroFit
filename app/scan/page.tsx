@@ -139,7 +139,12 @@ export default function ScanPage() {
           { facingMode: "environment" },
           {
             fps: 10,
-            qrbox: { width: 320, height: 200 },
+            // landscape rectangle decode region: 85% of the width, 40% of the
+            // height, centered — matches the rectangle frame drawn over the feed
+            qrbox: (viewfinderWidth, viewfinderHeight) => ({
+              width: Math.floor(viewfinderWidth * 0.85),
+              height: Math.floor(viewfinderHeight * 0.4),
+            }),
             videoConstraints: {
               facingMode: "environment",
               width: { min: 1280, ideal: 1920 },
@@ -189,6 +194,8 @@ export default function ScanPage() {
         // scanner was never started (camera unavailable) — nothing to stop
       }
       scannerRef.current = null;
+      const shader = document.getElementById("qr-shaded-region");
+      shader?.remove();
       setScanning(false);
       setStarted(false);
     };
@@ -765,21 +772,21 @@ export default function ScanPage() {
             Scan Barcode
           </h2>
           <div className="relative aspect-square w-full overflow-hidden border-2 border-outline-variant bg-surface-container lg:mx-auto lg:max-w-md">
-            <div id="barcode-container" className="h-full w-full" />
+            <div
+              id="barcode-container"
+              className="barcode-shader h-full w-full"
+              style={{ height: "100%", width: "100%" }}
+            />
             {scanning && !started && (
               <div className="absolute inset-0 flex items-center justify-center font-mono text-xs font-semibold uppercase text-on-surface-variant">
                 Starting camera...
               </div>
             )}
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute inset-x-4 top-4 h-1 border-x-2 border-t-2 border-tertiary" />
-              <div className="absolute inset-x-4 bottom-4 h-1 border-x-2 border-b-2 border-tertiary" />
-              <div className="absolute inset-y-4 left-4 w-1 border-y-2 border-l-2 border-tertiary" />
-              <div className="absolute inset-y-4 right-4 w-1 border-y-2 border-r-2 border-tertiary" />
-            </div>
             {scanning && started && (
               <div className="pointer-events-none absolute inset-0">
-                <div className="scanline-anim pointer-events-none absolute inset-x-0 top-0 h-1 bg-primary/60" />
+                {/* landscape rectangle frame matching the qrbox decode region */}
+                <div className="absolute left-[7.5%] top-[30%] h-[40%] w-[85%] border-2 border-tertiary" />
+                <div className="scanline-anim pointer-events-none absolute inset-x-[7.5%] top-[30%] h-1 bg-primary/60" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
                   <span className="flex items-center gap-1.5 bg-surface/80 px-2 py-1 font-mono text-[10px] font-semibold uppercase text-on-surface-variant">
                     <span className="material-symbols-outlined text-xs">barcode_scanner</span>

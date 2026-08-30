@@ -214,14 +214,24 @@ input[type="number"] {
 
 @keyframes scanline-anim {
   0% {
-    top: 0%;
+    top: 30%;
   }
   100% {
-    top: 100%;
+    top: 70%;
   }
 }
 .scanline-anim {
   animation: scanline-anim 2.5s linear infinite;
+}
+
+/* html5-qrcode injects a #qr-shaded-region div whose borders darken the whole
+   viewfinder (rgba(0,0,0,0.48)) and white corner brackets. Kill both so the
+   camera feed stays bright; the rectangle frame is drawn in app code. */
+.barcode-shader #qr-shaded-region {
+  border-color: transparent;
+}
+.barcode-shader #qr-shaded-region > div {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
