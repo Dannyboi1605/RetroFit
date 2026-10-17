@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/app-shell";
 import ScanCamera, { fileToDataUrl } from "@/components/scan-camera";
+import VoiceInput from "@/components/voice-input";
 import AddEntryModal from "@/components/add-entry-modal";
 import SaveToast from "@/components/save-toast";
 import { addMeal } from "@/db/db";
@@ -65,7 +66,7 @@ function sumItems(items: ItemRow[]) {
 }
 
 export default function ScanPage() {
-  const [mode, setMode] = useState<"ai" | "barcode">("ai");
+  const [mode, setMode] = useState<"ai" | "barcode" | "voice">("ai");
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
@@ -466,7 +467,7 @@ export default function ScanPage() {
         </h1>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           aria-pressed={mode === "ai"}
           aria-label="Switch to AI scan"
@@ -484,6 +485,15 @@ export default function ScanPage() {
         >
           <span className="material-symbols-outlined text-base">barcode_scanner</span>
           Barcode
+        </button>
+        <button
+          aria-pressed={mode === "voice"}
+          aria-label="Switch to voice log"
+          className={`pixel-btn-secondary py-2 ${mode === "voice" ? "border-primary text-primary" : "opacity-60"}`}
+          onClick={() => setMode("voice")}
+        >
+          <span className="material-symbols-outlined text-base">mic</span>
+          Voice
         </button>
       </div>
 
@@ -564,6 +574,41 @@ export default function ScanPage() {
               {error}
             </div>
           )}
+          <button className="pixel-btn-secondary w-full" onClick={() => setManualOpen(true)}>
+            <span className="material-symbols-outlined text-base">edit_note</span>
+            Enter Manually Instead
+          </button>
+        </div>
+      )}
+
+      {mode === "voice" && !result && (
+        <div className="snes-window flex flex-col gap-4 p-4">
+          <h2 className="border-b-2 border-surface-variant pb-2 font-headline text-lg font-bold uppercase tracking-widest text-tertiary">
+            Log by Voice
+          </h2>
+          <p className="font-mono text-[11px] uppercase text-on-surface-variant">
+            Speak what you ate — AI estimates the calories and macros. Edit anything before saving.
+          </p>
+          <VoiceInput value={describe} onChange={setDescribe} onError={setError} />
+          {error && (
+            <div role="alert" className="border-2 border-error bg-error/10 p-3 font-mono text-xs font-semibold text-error">
+              {error}
+            </div>
+          )}
+          <button
+            className="pixel-btn w-full"
+            onClick={handleDescribe}
+            disabled={!describe.trim() || analyzing}
+          >
+            {analyzing ? (
+              "Analyzing..."
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-base">auto_awesome</span>
+                Estimate Macros
+              </>
+            )}
+          </button>
           <button className="pixel-btn-secondary w-full" onClick={() => setManualOpen(true)}>
             <span className="material-symbols-outlined text-base">edit_note</span>
             Enter Manually Instead
