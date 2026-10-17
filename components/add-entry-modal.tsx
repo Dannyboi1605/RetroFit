@@ -18,6 +18,7 @@ export default function AddEntryModal({
   date,
   mealType,
   editing,
+  preset,
   onClose,
   onSaved,
 }: {
@@ -25,6 +26,14 @@ export default function AddEntryModal({
   date: string;
   mealType: "breakfast" | "lunch" | "dinner" | "snack";
   editing?: Meal | null;
+  preset?: {
+    name: string;
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    ingredients?: Meal["ingredients"];
+  } | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -62,6 +71,24 @@ export default function AddEntryModal({
           100
         )
       );
+    } else if (preset) {
+      setName(preset.name);
+      setCalories(String(preset.calories));
+      setProteinG(String(preset.protein_g));
+      setCarbsG(String(preset.carbs_g));
+      setFatG(String(preset.fat_g));
+      setUnitSel("g");
+      setAmountSel("100");
+      setGPerServingSel(100);
+      setIngredients(preset.ingredients ? JSON.parse(JSON.stringify(preset.ingredients)) : []);
+      setPer100(
+        fromDisplayed(
+          { calories: preset.calories, proteinG: preset.protein_g, carbsG: preset.carbs_g, fatG: preset.fat_g },
+          "g",
+          100,
+          100
+        )
+      );
     } else {
       setName("");
       setCalories("");
@@ -77,7 +104,7 @@ export default function AddEntryModal({
     setMealTypeSel(mealType);
     setLoggedDate(date);
     setTried(false);
-  }, [editing, open, mealType, date]);
+  }, [editing, preset, open, mealType, date]);
 
   useEffect(() => {
     if (open) nameRef.current?.focus();

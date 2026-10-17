@@ -38,9 +38,36 @@ export type WeightLog = {
   deleted: 0 | 1;
 };
 
+export type Favorite = {
+  client_id: string;
+  name: string;
+  name_key: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  ingredients?: MealIngredient[];
+  created_at: string;
+  deleted: 0 | 1;
+};
+
+export type RecentFood = {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  ingredients?: MealIngredient[];
+};
+
+export function normalizeFoodName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 class RetroFitDB extends Dexie {
   meals!: Table<Meal, string>;
   weightLogs!: Table<WeightLog, string>;
+  favorites!: Table<Favorite, string>;
   syncQueue!: Table<{ client_id: string; table: "meals" | "weightLogs"; op: "insert" | "delete" | "update"; created_at: string }, string>;
 
   constructor() {
@@ -49,6 +76,12 @@ class RetroFitDB extends Dexie {
       meals: "client_id, logged_date, synced, deleted",
       weightLogs: "client_id, logged_date, synced, deleted",
       syncQueue: "client_id, created_at",
+    });
+    this.version(2).stores({
+      meals: "client_id, logged_date, synced, deleted",
+      weightLogs: "client_id, logged_date, synced, deleted",
+      syncQueue: "client_id, created_at",
+      favorites: "client_id, name_key, deleted",
     });
   }
 }
@@ -174,4 +207,115 @@ export async function listWeightLogs(rangeDays?: number): Promise<WeightLog[]> {
   cutoff.setDate(cutoff.getDate() - rangeDays);
   const cutoffStr = dateStr(cutoff);
   return all.filter((w) => w.logged_date >= cutoffStr);
+}
+
+export async function addFavorite(input: {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  ingredients?: MealIngredient[];
+}): Promise<string> {
+  const name_key = normalizeFoodName(input.name);
+  const now = new Date().toISOString();
+  return db.transaction("rw", db.favorites, async () => {
+    const existing = await db.favorites
+      .where("name_key")
+      .equals(name_key)
+      .filter((f) => f.deleted === 0)
+      .first();
+    if (existing) {
+      await db.favorites.update(existing.client_id, { ...input, name_key, created_at: now });
+      return existing.client_id;
+    }
+    const client_id = crypto.randomUUID();
+    await db.favorites.add({ client_id, name_key, ...input, created_at: now, deleted: 0 });
+    return client_id;
+  });
+}
+
+export async function deleteFavorite(clientId: string): Promise<void> {
+  await db.favorites.update(clientId, { deleted: 1 });
+}
+
+export async function listFavorites(): Promise<Favorite[]> {
+  const all = await db.favorites.filter((f) => f.deleted === 0).sortBy("created_at");
+  return all.reverse();
+}
+
+export async function toggleFavorite(meal: {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  ingredients?: MealIngredient[];
+}): Promise<boolean> {
+  const name_key = normalizeFoodName(meal.name);
+  const existing = await db.favorites
+    .where("name_key")
+    .equals(name_key)
+    .filter((f) => f.deleted === 0)
+    .first();
+  if (existing) {
+    await deleteFavorite(existing.client_id);
+    return false;
+  }
+  await addFavorite(meal);
+  return true;
+}
+
+export async function listRecentFoods(limit = 8): Promise<RecentFood[]> {
+  const all = await db.meals.filter((m) => m.deleted === 0).sortBy("created_at");
+  all.reverse();
+  const seen = new Set<string>();
+  const out: RecentFood[] = [];
+  for (const m of all) {
+    const key = normalizeFoodName(m.name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      name: m.name,
+      calories: m.calories,
+      protein_g: m.protein_g,
+      carbs_g: m.carbs_g,
+      fat_g: m.fat_g,
+      ingredients: m.ingredients,
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+export async function previousLoggedDate(beforeDate: string): Promise<string | null> {
+  const all = await db.meals
+    .filter((m) => m.deleted === 0 && m.logged_date < beforeDate)
+    .sortBy("logged_date");
+  if (all.length === 0) return null;
+  return all[all.length - 1].logged_date;
+}
+
+export async function copyMeals(
+  fromDate: string,
+  toDate: string,
+  mealType?: Meal["meal_type"]
+): Promise<number> {
+  let source = await listMeals(fromDate);
+  if (mealType) source = source.filter((m) => m.meal_type === mealType);
+  if (source.length === 0) return 0;
+  for (const m of source) {
+    await addMeal({
+      logged_date: toDate,
+      meal_type: m.meal_type,
+      name: m.name,
+      calories: m.calories,
+      protein_g: m.protein_g,
+      carbs_g: m.carbs_g,
+      fat_g: m.fat_g,
+      source: m.source,
+      ingredients: m.ingredients ? JSON.parse(JSON.stringify(m.ingredients)) : undefined,
+    });
+  }
+  return source.length;
 }

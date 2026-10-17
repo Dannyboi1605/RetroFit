@@ -6,6 +6,9 @@ An 8-bit SNES RPG-themed, dark-mode Progressive Web App for personal calorie and
 
 - **Home Dashboard** – calories/macros vs. target with pixel-progress bars and a weight trend graph
 - **Daily Meal Logging** — log, edit, and delete meals across breakfast, lunch, dinner, snacks
+- **Quick Log (Recents & Loadout)** — one-tap re-log of recent foods and starred favorites, with Undo
+- **Replay** — copy a previous day (or a single meal) onto any date
+- **HP Remaining** — remaining-calorie headline that flags going over target
 - **AI Meal Scan** — camera photo → Gemini vision API (via OpenRouter, server-side key) → calorie/macro estimates
 - **Barcode Scanner** — camera barcode lookup against Open Food Facts, with manual fallback
 - **Weight Tracker** — daily weigh-ins with delta and trend charts
